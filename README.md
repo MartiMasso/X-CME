@@ -6,7 +6,7 @@
 **Fitting app for interplanetary Coronal Mass Ejections (ICMEs)**  
 Developed by Martí Massó Moreno at NASA Goddard
 
----
+--- 
 
 ## 🚀 Overview
 
@@ -24,3 +24,7 @@ X-CME is a Streamlit application that lets you interactively fit magnetic‐flux
    ```bash
    git clone https://github.com/MartiMasso/X-CME.git
    cd X-CME
+
+
+
+_This line confirms the remote has been updated!_
