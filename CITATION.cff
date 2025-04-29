@@ -1,13 +1,10 @@
-## 📑 How to cite
-
-If you use this tool in your research, please cite it as follows:
-
-```bibtex
-@software{MassoMoreno2025,
-  title    = {{X-CME: Fitting App for ICME’s}},
-  author   = {Massó Moreno, Martí},
-  year     = {2025},
-  version  = {v0.1.0},
-  doi      = {10.5281/zenodo.XXXXXXX},
-  url      = {https://github.com/MartiMasso/X-CME}
-}
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it as follows."
+title: "X-CME: Fitting App for ICME’s"
+version: "v0.1.0"
+date-released: "2025-04-29"
+authors:
+  - family-names: "Massó Moreno"
+    given-names: "Martí"
+doi: "10.5281/zenodo.XXXXXXX"
+url: "https://github.com/X-CME/X-CME"
