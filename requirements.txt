@@ -54,6 +54,7 @@ scikit-image==0.25.1
 scikit-learn==1.6.1
 scipy==1.15.2
 setuptools==75.3.0
+sympy==1.13.3
 soupsieve==2.6
 spiceypy==6.0.0
 streamlit==1.40.2
