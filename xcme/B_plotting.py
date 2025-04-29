@@ -1,6 +1,7 @@
-import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.rcParams['text.usetex'] = False
+
+import matplotlib.pyplot as plt
 import streamlit as st
 import pandas as pd
 from A_data import doy_2_datetime
