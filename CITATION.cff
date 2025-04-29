@@ -2,11 +2,12 @@
 
 If you use this tool in your research, please cite it as follows:
 
+```bibtex
 @software{MassoMoreno2025,
-  title       = {{X-CME: Fitting App for ICME’s}},
-  author      = {Massó Moreno, Martí},
-  year        = {2025},
-  version     = {v0.1.0},
-  doi         = {10.5281/zenodo.XXXXXXX},
-  url         = {https://github.com/MartiMasso/X-CME},
+  title    = {{X-CME: Fitting App for ICME’s}},
+  author   = {Massó Moreno, Martí},
+  year     = {2025},
+  version  = {v0.1.0},
+  doi      = {10.5281/zenodo.XXXXXXX},
+  url      = {https://github.com/MartiMasso/X-CME}
 }
