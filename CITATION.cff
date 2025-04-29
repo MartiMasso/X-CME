@@ -2,7 +2,6 @@
 
 If you use this tool in your research, please cite it as follows:
 
-```bibtex
 @software{MassoMoreno2025,
   title       = {{X-CME: Fitting App for ICME’s}},
   author      = {Massó Moreno, Martí},
