@@ -746,122 +746,122 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
                             best_R2 = R2_avg
 
 
-                            # Parameter text for annotations with updated order
-                            param_text = (
-                                f"Iter: {iteration_counter}\n"
-                                r"$\theta_x$: " + f"{angle_x:.2f} rad\n"
-                                r"$\theta_y$: " + f"{angle_y:.2f} rad\n"
-                                r"$\theta_z$: " + f"{angle_z:.2f} rad\n"
-                                f"z0: {z0:.2f}\n"
-                                r"$\delta$: " + f"{delta:.2f}"
-                            )
+                            # # Parameter text for annotations with updated order
+                            # param_text = (
+                            #     f"Iter: {iteration_counter}\n"
+                            #     r"$\theta_x$: " + f"{angle_x:.2f} rad\n"
+                            #     r"$\theta_y$: " + f"{angle_y:.2f} rad\n"
+                            #     r"$\theta_z$: " + f"{angle_z:.2f} rad\n"
+                            #     f"z0: {z0:.2f}\n"
+                            #     r"$\delta$: " + f"{delta:.2f}"
+                            # )
 
-                            # ----------------------------------------------------------------------------------
-                            # Plot Combined) Cylindrical Components (Left) and Original Data Fitting (Right)
-                            # ----------------------------------------------------------------------------------
-                            # Creamos figura más grande para que los subplots ocupen más espacio
-                            fig, axes = plt.subplots(
-                                4, 2,
-                                figsize=(24, 18),                  # de 20x15 a 24x18
-                                gridspec_kw={'width_ratios': [1, 1]}
-                            )
+                            # # ----------------------------------------------------------------------------------
+                            # # Plot Combined) Cylindrical Components (Left) and Original Data Fitting (Right)
+                            # # ----------------------------------------------------------------------------------
+                            # # Creamos figura más grande para que los subplots ocupen más espacio
+                            # fig, axes = plt.subplots(
+                            #     4, 2,
+                            #     figsize=(24, 18),                  # de 20x15 a 24x18
+                            #     gridspec_kw={'width_ratios': [1, 1]}
+                            # )
 
-                            # ─── Columna izquierda: Componentes cilíndricas ────────────────────────────────────
-                            marker_size = 10
-                            # Br
-                            axes[0, 0].scatter(x_traj, Br_exp,      color='blue', label=r"$B_r^{exp}$", s=marker_size)
-                            axes[0, 0].plot(   x_traj, Br_vector,   color='cyan', linestyle='--', label=r"$B_r^{fit}$")
-                            axes[0, 0].set_title("Radial Component $B_r$")
-                            axes[0, 0].set_xlabel("a")
-                            axes[0, 0].set_ylabel(r"$B_r$ (nT)")
-                            axes[0, 0].legend()
-                            axes[0, 0].grid(True)
-                            # By
-                            axes[1, 0].scatter(x_traj, By_exp_cyl,      color='green', label=r"$B_y^{exp}$", s=marker_size)
-                            axes[1, 0].plot(   x_traj, By_vector,   color='lime',  linestyle='--', label=r"$B_y^{fit}$")
-                            axes[1, 0].set_title("Axial Component $B_y$")
-                            axes[1, 0].set_xlabel("a")
-                            axes[1, 0].set_ylabel(r"$B_y$ (nT)")
-                            axes[1, 0].legend()
-                            axes[1, 0].grid(True)
-                            # Bphi
-                            axes[2, 0].scatter(x_traj, Bphi_exp,      color='red',    label=r"$B_\phi^{exp}$", s=marker_size)
-                            axes[2, 0].plot(   x_traj, Bphi_vector,   color='orange', linestyle='--', label=r"$B_\phi^{fit}$")
-                            axes[2, 0].set_title("Azimuthal Component $B_\phi$")
-                            axes[2, 0].set_xlabel("a")
-                            axes[2, 0].set_ylabel(r"$B_\phi$ (nT)")
-                            axes[2, 0].legend()
-                            axes[2, 0].grid(True)
-                            # Eliminamos el cuarto eje vacío
-                            axes[3, 0].axis('off')
+                            # # ─── Columna izquierda: Componentes cilíndricas ────────────────────────────────────
+                            # marker_size = 10
+                            # # Br
+                            # axes[0, 0].scatter(x_traj, Br_exp,      color='blue', label=r"$B_r^{exp}$", s=marker_size)
+                            # axes[0, 0].plot(   x_traj, Br_vector,   color='cyan', linestyle='--', label=r"$B_r^{fit}$")
+                            # axes[0, 0].set_title("Radial Component $B_r$")
+                            # axes[0, 0].set_xlabel("a")
+                            # axes[0, 0].set_ylabel(r"$B_r$ (nT)")
+                            # axes[0, 0].legend()
+                            # axes[0, 0].grid(True)
+                            # # By
+                            # axes[1, 0].scatter(x_traj, By_exp_cyl,      color='green', label=r"$B_y^{exp}$", s=marker_size)
+                            # axes[1, 0].plot(   x_traj, By_vector,   color='lime',  linestyle='--', label=r"$B_y^{fit}$")
+                            # axes[1, 0].set_title("Axial Component $B_y$")
+                            # axes[1, 0].set_xlabel("a")
+                            # axes[1, 0].set_ylabel(r"$B_y$ (nT)")
+                            # axes[1, 0].legend()
+                            # axes[1, 0].grid(True)
+                            # # Bphi
+                            # axes[2, 0].scatter(x_traj, Bphi_exp,      color='red',    label=r"$B_\phi^{exp}$", s=marker_size)
+                            # axes[2, 0].plot(   x_traj, Bphi_vector,   color='orange', linestyle='--', label=r"$B_\phi^{fit}$")
+                            # axes[2, 0].set_title("Azimuthal Component $B_\phi$")
+                            # axes[2, 0].set_xlabel("a")
+                            # axes[2, 0].set_ylabel(r"$B_\phi$ (nT)")
+                            # axes[2, 0].legend()
+                            # axes[2, 0].grid(True)
+                            # # Eliminamos el cuarto eje vacío
+                            # axes[3, 0].axis('off')
 
-                            # ─── Columna derecha: Datos originales vs. ajustados ───────────────────────────────
-                            B_vector = B_vector[::-1]
-                            Bx_GSE   = Bx_GSE[::-1]
-                            By_GSE   = By_GSE[::-1]
-                            Bz_GSE   = Bz_GSE[::-1]
-                            adjusted_data = [B_vector, Bx_GSE, By_GSE, Bz_GSE]
-                            components    = ['B', 'Bx', 'By', 'Bz']
-                            data_compare  = [B_data, Bx_data, By_data, Bz_data]
-                            titles_compare = [
-                                "Magnetic Field Intensity (B)",
-                                "Magnetic Field Component Bx",
-                                "Magnetic Field Component By",
-                                "Magnetic Field Component Bz",
-                            ]
-                            start_segment = ddoy_data[initial_point - 1]
-                            end_segment   = ddoy_data[final_point - 2]
+                            # # ─── Columna derecha: Datos originales vs. ajustados ───────────────────────────────
+                            # B_vector = B_vector[::-1]
+                            # Bx_GSE   = Bx_GSE[::-1]
+                            # By_GSE   = By_GSE[::-1]
+                            # Bz_GSE   = Bz_GSE[::-1]
+                            # adjusted_data = [B_vector, Bx_GSE, By_GSE, Bz_GSE]
+                            # components    = ['B', 'Bx', 'By', 'Bz']
+                            # data_compare  = [B_data, Bx_data, By_data, Bz_data]
+                            # titles_compare = [
+                            #     "Magnetic Field Intensity (B)",
+                            #     "Magnetic Field Component Bx",
+                            #     "Magnetic Field Component By",
+                            #     "Magnetic Field Component Bz",
+                            # ]
+                            # start_segment = ddoy_data[initial_point - 1]
+                            # end_segment   = ddoy_data[final_point - 2]
 
-                            for idx, (comp, orig, adj, title) in enumerate(zip(components, data_compare, adjusted_data, titles_compare)):
-                                ax = axes[idx, 1]
-                                ax.scatter(ddoy_data, orig, color='black', s=10, label=f'{comp} Original')
-                                ax.plot(
-                                    ddoy_data[initial_point - 1: final_point - 1],
-                                    adj,
-                                    color='red', linestyle='--', linewidth=2, label=f'{comp} Fitted'
-                                )
-                                ax.axvline(x=start_segment, color='gray', linestyle='--', label='Start of Segment')
-                                ax.axvline(x=end_segment,   color='gray', linestyle='--', label='End of Segment')
-                                ax.set_title(title, fontsize=14, fontweight='bold')
-                                ax.set_ylabel(f"{comp} (nT)", fontsize=12)
-                                if idx == 3:
-                                    ax.set_xlabel("Day of the Year (ddoy)", fontsize=12)
-                                ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-                                ax.minorticks_on()
-                                ax.legend(fontsize=10)
+                            # for idx, (comp, orig, adj, title) in enumerate(zip(components, data_compare, adjusted_data, titles_compare)):
+                            #     ax = axes[idx, 1]
+                            #     ax.scatter(ddoy_data, orig, color='black', s=10, label=f'{comp} Original')
+                            #     ax.plot(
+                            #         ddoy_data[initial_point - 1: final_point - 1],
+                            #         adj,
+                            #         color='red', linestyle='--', linewidth=2, label=f'{comp} Fitted'
+                            #     )
+                            #     ax.axvline(x=start_segment, color='gray', linestyle='--', label='Start of Segment')
+                            #     ax.axvline(x=end_segment,   color='gray', linestyle='--', label='End of Segment')
+                            #     ax.set_title(title, fontsize=14, fontweight='bold')
+                            #     ax.set_ylabel(f"{comp} (nT)", fontsize=12)
+                            #     if idx == 3:
+                            #         ax.set_xlabel("Day of the Year (ddoy)", fontsize=12)
+                            #     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+                            #     ax.minorticks_on()
+                            #     ax.legend(fontsize=10)
 
-                            # ─── Anotaciones de parámetros ────────────────────────────────────────────────────
-                            fig.text(
-                                0.02, 0.03,            # posición, ligeramente movida para no recortar
-                                param_text,
-                                fontsize=28,           # tamaño de fuente duplicado
-                                bbox=dict(
-                                    facecolor='white',
-                                    alpha=0.8,
-                                    boxstyle='square,pad=0.8'  # mismo boxstyle y padding que tenías
-                                ),
-                                verticalalignment='bottom',
-                                horizontalalignment='left'
-                            )
+                            # # ─── Anotaciones de parámetros ────────────────────────────────────────────────────
+                            # fig.text(
+                            #     0.02, 0.03,            # posición, ligeramente movida para no recortar
+                            #     param_text,
+                            #     fontsize=28,           # tamaño de fuente duplicado
+                            #     bbox=dict(
+                            #         facecolor='white',
+                            #         alpha=0.8,
+                            #         boxstyle='square,pad=0.8'  # mismo boxstyle y padding que tenías
+                            #     ),
+                            #     verticalalignment='bottom',
+                            #     horizontalalignment='left'
+                            # )
 
-                            # ─── Ajuste de márgenes para maximizar espacio de ejes ─────────────────────────────
-                            plt.subplots_adjust(
-                                left=0.03,    # margen izquierdo muy pequeño
-                                right=0.97,   # margen derecho muy pequeño
-                                top=0.97,     # margen superior pequeño
-                                bottom=0.15,  # deja espacio para el texto abajo
-                                wspace=0.35,  # reduce el espacio horizontal entre columnas
-                                hspace=0.25   # reduce el espacio vertical entre filas
-                            )
+                            # # ─── Ajuste de márgenes para maximizar espacio de ejes ─────────────────────────────
+                            # plt.subplots_adjust(
+                            #     left=0.03,    # margen izquierdo muy pequeño
+                            #     right=0.97,   # margen derecho muy pequeño
+                            #     top=0.97,     # margen superior pequeño
+                            #     bottom=0.15,  # deja espacio para el texto abajo
+                            #     wspace=0.35,  # reduce el espacio horizontal entre columnas
+                            #     hspace=0.25   # reduce el espacio vertical entre filas
+                            # )
 
-                            # Guardar y cerrar
-                            plot_combined_filename = os.path.join(
-                                output_dir,
-                                f"plot_combined_iter_{iteration_counter:04d}_z0_{z0:.2f}_delta_{delta:.2f}"
-                                f"_ax_{angle_x:.2f}_ay_{angle_y:.2f}_az_{angle_z:.2f}.png"
-                            )
-                            plt.savefig(plot_combined_filename, dpi=300, bbox_inches='tight')
-                            plt.close(fig)
+                            # # Guardar y cerrar
+                            # plot_combined_filename = os.path.join(
+                            #     output_dir,
+                            #     f"plot_combined_iter_{iteration_counter:04d}_z0_{z0:.2f}_delta_{delta:.2f}"
+                            #     f"_ax_{angle_x:.2f}_ay_{angle_y:.2f}_az_{angle_z:.2f}.png"
+                            # )
+                            # plt.savefig(plot_combined_filename, dpi=300, bbox_inches='tight')
+                            # plt.close(fig)
 
 
 
