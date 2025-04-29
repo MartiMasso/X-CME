@@ -1,5 +1,11 @@
+# xcme/B_plotting.py (or at top of your main script)
 import matplotlib as mpl
-mpl.rcParams['text.usetex'] = False  # Disable external LaTeX rendering
+
+# 1) Never call out to real LaTeX:
+mpl.rcParams['text.usetex'] = False
+
+# 2) Disable the “offset” formatter that uses math‐text for things like “1e3”:
+mpl.rcParams['axes.formatter.useoffset'] = False
 
 import matplotlib.pyplot as plt
 import streamlit as st
