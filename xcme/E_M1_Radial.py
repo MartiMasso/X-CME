@@ -56,7 +56,7 @@ def elliptical_coords(x, y, xc, yc, a, b, theta):
     Yp = X * sin_t + Y * cos_t
     r = np.sqrt((Xp / a)**2 + (Yp / b)**2)
     alpha = np.arctan2(Yp / b, Xp / a)
-    alpha = np.mod(alpha, 2*np.pi)
+    # alpha = np.mod(alpha, 2*np.pi)
     return r, alpha
 
 # Function to compute the fitting (with cache)
@@ -142,6 +142,8 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
     # angle_z_range = np.array([-np.radians(-30.1)])             # (0, 180)
     # delta_range = np.array([0.7])                           # (0, 1)
 
+
+
     # Iteration parameters
     z0_range = np.linspace(-0.7, 0.7, N_iter)                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
     angle_x_range = np.linspace(0.4, np.pi - 0.4, N_iter)                # Interval (0, π)
@@ -174,748 +176,755 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
+    angle_min_x_deg = 10  # Minimum angle of the FR axis wrt the x-axis. 
+    angle_min_x = np.deg2rad(angle_min_x_deg) 
+    angle_min_z_deg = 10  # Minimum angle of the FR axis wrt the z-axis. 
+    angle_min_z = np.deg2rad(angle_min_z_deg) 
+
     # ----------------------------------------------------------------------------------
     # Main Loop           
     # ----------------------------------------------------------------------------------
     for z0 in z0_range:
         for angle_x in angle_x_range:
             for angle_y in angle_y_range:
-                for angle_z in angle_z_range:
-                    for delta in delta_range:
-                        current_iteration += 1
-                        progress_percent = int((current_iteration / total_iterations) * 100)
-                        progress_bar.progress(progress_percent)
-                        progress_text.text(f"Processing... {progress_percent}% completed")
-                        iteration_counter += 1
-                        # ----------------------------------------------------------------------------------
-                        # 1. Geometry configuration
-                        # ----------------------------------------------------------------------------------
-                        N = 100
-                        a = 1
-                        b = delta * a
-
-                        # 1.1 Rotation Matrices
-                        # ----------------------------------------------------------------------------------
-                        R_x = np.array([[1, 0, 0], [0, np.cos(angle_x), -np.sin(angle_x)], [0, np.sin(angle_x), np.cos(angle_x)]])
-                        R_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)], [0, 1, 0], [-np.sin(angle_y), 0, np.cos(angle_y)]])
-                        R_z = np.array([[np.cos(angle_z), -np.sin(angle_z), 0], [np.sin(angle_z), np.cos(angle_z), 0], [0, 0, 1]])
-                        rotation_matrix = R_y @ R_x @ R_z
-                        rotation_matrix_inv = rotation_matrix.T
-
-                        # 1.2 Cylinder Coordinates Centered at Origin
-                        # ----------------------------------------------------------------------------------
-                        theta = np.linspace(0, 2 * np.pi, N)
-                        z = np.linspace(-1.5 * a, 1.5 * a, N)
-                        Theta, Z = np.meshgrid(theta, z)
-                        X = a * np.cos(Theta)
-                        Y = b * np.sin(Theta)
-
-                        # 1.3 Rotate Cylinder
-                        # ----------------------------------------------------------------------------------
-                        X_flat, Y_flat, Z_flat = X.flatten(), Y.flatten(), Z.flatten()
-                        rotated_points = np.dot(rotation_matrix, np.vstack([X_flat, Y_flat, Z_flat]))
-                        X_rot, Y_rot, Z_rot = rotated_points[0].reshape(N, N), rotated_points[1].reshape(N, N), rotated_points[2].reshape(N, N)
-
-                        # ----------------------------------------------------------------------------------
-                        # 2. Cylinder Intersection with Plane y = 0 and Spacecraft
-                        # ----------------------------------------------------------------------------------
-                        cut_indices = np.abs(Y_rot) < 0.05
-                        X_cut = X_rot[cut_indices]
-                        Z_cut = Z_rot[cut_indices]
-
-                        # 2.1 Sort Intersection Points
-                        # ----------------------------------------------------------------------------------
-                        angles_filtered = np.arctan2(Z_cut, X_cut)
-                        sorted_indices_filtered = np.argsort(angles_filtered)
-                        X_final = X_cut[sorted_indices_filtered]
-                        Z_final = Z_cut[sorted_indices_filtered]
-
-                        X_reduced = X_final[::3]
-                        Z_reduced = Z_final[::3]
-
-                        # 2.2 Fit Ellipse to Intersection
-                        # ----------------------------------------------------------------------------------
-                        ellipse_model = EllipseModel()
-                        ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
-                        xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params
-
-                        # 2.3 Generate Ellipse Points
-                        # ----------------------------------------------------------------------------------
-                        t = np.linspace(0, 2 * np.pi, Npt_resolution)
-                        X_ellipse = a_ellipse * np.cos(t) * np.cos(theta) - b_ellipse * np.sin(t) * np.sin(theta)
-                        Z_ellipse = a_ellipse * np.cos(t) * np.sin(theta) + b_ellipse * np.sin(t) * np.cos(theta)
-
-                        # 2.4 Center the Cylinder and Ellipse at Origin
-                        # ----------------------------------------------------------------------------------
-                        X_rot_centered = X_rot - xc
-                        Y_rot_centered = Y_rot  # Y remains unchanged for y=0 plane
-                        Z_rot_centered = Z_rot - zc
-
-                        # ----------------------------------------------------------------------------------
-                        # 3. Spacecraft Trajectory (horizontal cut) in the Section Ellipse
-                        # ----------------------------------------------------------------------------------
-                        Z_max = np.max(Z_ellipse)
-                        Z_min = np.min(Z_ellipse)
-                        z_cut = z0 * Z_max
-
-                        # 3.1 Solve the System
-                        # ----------------------------------------------------------------------------------
-                        A_quad = (np.cos(theta)**2) / a_ellipse**2 + (np.sin(theta)**2) / b_ellipse**2
-                        B_quad = 2 * ((np.cos(theta) * np.sin(theta)) / a_ellipse**2 - (np.cos(theta) * np.sin(theta)) / b_ellipse**2) * z_cut
-                        C_quad = ((np.sin(theta)**2) / a_ellipse**2 + (np.cos(theta)**2) / b_ellipse**2) * z_cut**2 - 1
-
-                        discriminant = B_quad**2 - 4 * A_quad * C_quad
-
-                        if discriminant >= 0:
-                            x1 = (-B_quad + np.sqrt(discriminant)) / (2 * A_quad) #+ xc
-                            x2 = (-B_quad - np.sqrt(discriminant)) / (2 * A_quad) #+ xc
-
-                            X_intersections = np.array([x1, x2])
-                            Z_intersections = np.full_like(X_intersections, z_cut)
-
-                            # 3.2 Scale Coordinates
+                if abs(np.sin(angle_y) * np.cos(angle_x)) <= np.cos(angle_min_x) and abs(np.cos(angle_x) * np.cos(angle_y)) <= np.cos(angle_min_z):
+                    for angle_z in angle_z_range:
+                        for delta in delta_range:
+                            current_iteration += 1
+                            progress_percent = int((current_iteration / total_iterations) * 100)
+                            progress_bar.progress(progress_percent)
+                            progress_text.text(f"Processing... {progress_percent}% completed")
+                            iteration_counter += 1
                             # ----------------------------------------------------------------------------------
-                            # Calculate the actual distance between intersection points
-                            L_actual = np.abs(x2 - x1)
-
-                            # Determine the scaling factor
-                            scale_factor = length_L1 / L_actual
-
-                            # Apply the scaling factor to the ellipse
-                            X_ellipse_scaled = xc + scale_factor * (X_ellipse) #- xc)
-                            Z_ellipse_scaled = zc + scale_factor * (Z_ellipse)# - zc)
-
-                            idx_max = np.argmax(Z_ellipse_scaled)
-                            idx_min = np.argmin(Z_ellipse_scaled)
-                            x_at_Z_max = X_ellipse_scaled[idx_max]
-                            x_at_Z_min = X_ellipse_scaled[idx_min]
-
-                            # Scale the intersection points
-                            x1_scaled = xc + scale_factor * (x1)# - xc)
-                            x2_scaled = xc + scale_factor * (x2)# - xc)
-
-                            Z_max_scaled = zc + scale_factor * (Z_max )#- zc)
-                            z_cut_scaled = zc + scale_factor * (z_cut)# - zc)
-
-                            X_intersections_scaled = np.array([x1_scaled, x2_scaled])
-                            Z_intersections_scaled = np.full_like(X_intersections_scaled, z_cut_scaled)
-
-                            # Scale the cylinder (only once)
-                            X_rot_scaled = X_rot_centered * scale_factor
-                            Y_rot_scaled = Y_rot_centered * scale_factor
-                            Z_rot_scaled = Z_rot_centered * scale_factor
-
-                            # 3.3 Satellite Trajectory
+                            # 1. Geometry configuration
                             # ----------------------------------------------------------------------------------
-                            xs = np.linspace(x1_scaled, x2_scaled, num=100)  # X points along the cut
-                            ys = np.zeros_like(xs)  # y=0 plane
-                            zs = np.full_like(xs, z_cut_scaled)  # Constant height at z_cut_scaled
+                            N = 100
+                            a = 1
+                            b = delta * a
 
-                            # 3.4 Ellipse Boundaries and Reference Lines
+                            # 1.1 Rotation Matrices
                             # ----------------------------------------------------------------------------------
-                            x_min = np.min(X_ellipse_scaled)
-                            x_max = np.max(X_ellipse_scaled)
-                            z_min = np.min(Z_ellipse_scaled)
-                            z_max = np.max(Z_ellipse_scaled)
+                            R_x = np.array([[1, 0, 0], [0, np.cos(angle_x), -np.sin(angle_x)], [0, np.sin(angle_x), np.cos(angle_x)]])
+                            R_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)], [0, 1, 0], [-np.sin(angle_y), 0, np.cos(angle_y)]])
+                            R_z = np.array([[np.cos(angle_z), -np.sin(angle_z), 0], [np.sin(angle_z), np.cos(angle_z), 0], [0, 0, 1]])
+                            rotation_matrix = R_y @ R_x @ R_z
+                            rotation_matrix_inv = rotation_matrix.T
 
-                            # Adjust small margins so the ellipse doesn’t touch the edges
-                            margin = 0.1 * (x_max - x_min)  # 10% margin of the range
-                            x_limits = [x_min - margin, x_max + margin]
-                            z_limits = [z_min - margin, z_max + margin]
+                            # 1.2 Cylinder Coordinates Centered at Origin
+                            # ----------------------------------------------------------------------------------
+                            theta = np.linspace(0, 2 * np.pi, N)
+                            z = np.linspace(-1.5 * a, 1.5 * a, N)
+                            Theta, Z = np.meshgrid(theta, z)
+                            X = a * np.cos(Theta)
+                            Y = b * np.sin(Theta)
 
-                            # Find the highest point of the ellipse
-                            max_z_index = np.argmax(Z_ellipse_scaled)
-                            x_max_z = X_ellipse_scaled[max_z_index]  # X at the maximum Z point
+                            # 1.3 Rotate Cylinder
+                            # ----------------------------------------------------------------------------------
+                            X_flat, Y_flat, Z_flat = X.flatten(), Y.flatten(), Z.flatten()
+                            rotated_points = np.dot(rotation_matrix, np.vstack([X_flat, Y_flat, Z_flat]))
+                            X_rot, Y_rot, Z_rot = rotated_points[0].reshape(N, N), rotated_points[1].reshape(N, N), rotated_points[2].reshape(N, N)
 
-                            # Calculate limits of the lines within the ellipse
-                            indices_z_zero = np.where(np.abs(Z_ellipse_scaled - 0) < 1e-2)[0]
-                            x_z_zero_limits = np.sort(X_ellipse_scaled[indices_z_zero]) if len(indices_z_zero) >= 2 else [x_min, x_max]
-                            indices_x_max_z = np.where(np.abs(X_ellipse_scaled - x_max_z) < 1e-2)[0]
-                            z_x_max_z_limits = np.sort(Z_ellipse_scaled[indices_x_max_z]) if len(indices_x_max_z) >= 2 else [z_min, z_max]
+                            # ----------------------------------------------------------------------------------
+                            # 2. Cylinder Intersection with Plane y = 0 and Spacecraft
+                            # ----------------------------------------------------------------------------------
+                            cut_indices = np.abs(Y_rot) < 0.05
+                            X_cut = X_rot[cut_indices]
+                            Z_cut = Z_rot[cut_indices]
 
-                            # Calculate the upper half of the vertical line
-                            z_mid = (z_x_max_z_limits[0] + z_x_max_z_limits[1]) / 2
-                            z_upper_limit = z_x_max_z_limits[1]
-                            z_lower_limit_upper_half = z_mid
-                            height_upper_half = z_upper_limit - z_lower_limit_upper_half
-                            relative_position = z_cut_scaled - z_lower_limit_upper_half
-                            percentage_in_upper_half = (relative_position / height_upper_half) * 100 if height_upper_half > 0 else 0
+                            # 2.1 Sort Intersection Points
+                            # ----------------------------------------------------------------------------------
+                            angles_filtered = np.arctan2(Z_cut, X_cut)
+                            sorted_indices_filtered = np.argsort(angles_filtered)
+                            X_final = X_cut[sorted_indices_filtered]
+                            Z_final = Z_cut[sorted_indices_filtered]
 
-                            # st.write(f"Percentage of the trajectory height in the upper half of maximum z: {percentage_in_upper_half:.2f}%")
+                            X_reduced = X_final[::3]
+                            Z_reduced = Z_final[::3]
 
-                        else:
-                            print("\nNo real solutions found for the cut at Z =", z_cut)
-                            exit()
+                            # 2.2 Fit Ellipse to Intersection
+                            # ----------------------------------------------------------------------------------
+                            ellipse_model = EllipseModel()
+                            ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
+                            xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params
 
-                        # ----------------------------------------------------------------------------------
-                        # 4. Projection onto the Transverse Plane
-                        # ----------------------------------------------------------------------------------
-                       
-                        # 4.1 Compute Cylinder Axis and Plane Equation
-                        # ----------------------------------------------------------------------------------
-                        axis_cylinder = rotation_matrix @ np.array([0, 0, 1])
+                            # 2.3 Generate Ellipse Points
+                            # ----------------------------------------------------------------------------------
+                            t = np.linspace(0, 2 * np.pi, Npt_resolution)
+                            X_ellipse = a_ellipse * np.cos(t) * np.cos(theta) - b_ellipse * np.sin(t) * np.sin(theta)
+                            Z_ellipse = a_ellipse * np.cos(t) * np.sin(theta) + b_ellipse * np.sin(t) * np.cos(theta)
 
-                        center_point = np.array([xc, 0, zc])
-                        d = np.dot(axis_cylinder, center_point)
-                        # print(f"Transverse plane constant: d = {d:.6f}")
+                            # 2.4 Center the Cylinder and Ellipse at Origin
+                            # ----------------------------------------------------------------------------------
+                            X_rot_centered = X_rot - xc
+                            Y_rot_centered = Y_rot  # Y remains unchanged for y=0 plane
+                            Z_rot_centered = Z_rot - zc
 
-                        axis_cylinder_norm = axis_cylinder / np.linalg.norm(axis_cylinder)
+                            # ----------------------------------------------------------------------------------
+                            # 3. Spacecraft Trajectory (horizontal cut) in the Section Ellipse
+                            # ----------------------------------------------------------------------------------
+                            Z_max = np.max(Z_ellipse)
+                            Z_min = np.min(Z_ellipse)
+                            z_cut = z0 * Z_max
 
-                        # ----------------------------------------------------------------------
-                        # Projections to the plane: 
-                        # ----------------------------------------------------------------------
+                            # 3.1 Solve the System
+                            # ----------------------------------------------------------------------------------
+                            A_quad = (np.cos(theta)**2) / a_ellipse**2 + (np.sin(theta)**2) / b_ellipse**2
+                            B_quad = 2 * ((np.cos(theta) * np.sin(theta)) / a_ellipse**2 - (np.cos(theta) * np.sin(theta)) / b_ellipse**2) * z_cut
+                            C_quad = ((np.sin(theta)**2) / a_ellipse**2 + (np.cos(theta)**2) / b_ellipse**2) * z_cut**2 - 1
 
-                        def project_to_plane(point, normal, d):
-                            dot_product = np.dot(normal, point)
-                            t = (d - dot_product) / np.dot(normal, normal)
-                            projected_point = point + t * normal
-                            return projected_point
-                        
-                        # 4.2 Project the ellipse
-                        # ----------------------------------------------------------------------
-                        X_ellipse_3d = np.vstack([X_ellipse_scaled, np.zeros_like(X_ellipse_scaled), Z_ellipse_scaled]).T
-                        projected_ellipse = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in X_ellipse_3d])
-                        X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse = projected_ellipse[:, 0], projected_ellipse[:, 1], projected_ellipse[:, 2]
+                            discriminant = B_quad**2 - 4 * A_quad * C_quad
 
-                        # 4.3 Project the intersection points
-                        # ----------------------------------------------------------------------
-                        intersection_points = np.array([[x1_scaled, 0, z_cut_scaled], [x2_scaled, 0, z_cut_scaled]])
-                        projected_intersections = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in intersection_points])
-                        X_proj_inter, Y_proj_inter, Z_proj_inter = projected_intersections[:, 0], projected_intersections[:, 1], projected_intersections[:, 2]
+                            if discriminant >= 0:
+                                x1 = (-B_quad + np.sqrt(discriminant)) / (2 * A_quad) #+ xc
+                                x2 = (-B_quad - np.sqrt(discriminant)) / (2 * A_quad) #+ xc
 
-                        # 4.4 Project the cut trajectory
-                        # ----------------------------------------------------------------------
-                        n_points = len(Bx_exp)
-                        X_traj = np.linspace(x1_scaled, x2_scaled, n_points)
-                        Y_traj = np.zeros_like(X_traj)
-                        Z_traj = np.full_like(X_traj, z_cut_scaled)
-                        trajectory_points = np.vstack([X_traj, Y_traj, Z_traj]).T
-                        projected_trajectory = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in trajectory_points])
-                        X_proj_traj, Y_proj_traj, Z_proj_traj = projected_trajectory[:, 0], projected_trajectory[:, 1], projected_trajectory[:, 2]
+                                X_intersections = np.array([x1, x2])
+                                Z_intersections = np.full_like(X_intersections, z_cut)
 
-                        # 4.5 Fit an ellipse to the centered projected ellipse points
-                        # ----------------------------------------------------------------------
-                        ellipse_model = EllipseModel()
-                        ellipse_points = np.column_stack((X_proj_ellipse, Y_proj_ellipse))
-                        ellipse_model.estimate(ellipse_points)
-                        xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params
-                        xc_proj, yc_proj = 0, 0  # Already centered at the origin
+                                # 3.2 Scale Coordinates
+                                # ----------------------------------------------------------------------------------
+                                # Calculate the actual distance between intersection points
+                                L_actual = np.abs(x2 - x1)
 
-                        # Calculate the slope of the projected trajectory
-                        # ----------------------------------------------------------------------
-                        slope_traj = (Y_proj_traj[-1] - Y_proj_traj[0]) / (X_proj_traj[-1] - X_proj_traj[0]) if (X_proj_traj[-1] - X_proj_traj[0]) != 0 else float('inf')
-                        trajectory_angle = np.arctan2(Y_proj_traj[-1] - Y_proj_traj[0], X_proj_traj[-1] - X_proj_traj[0])
+                                # Determine the scaling factor
+                                scale_factor = length_L1 / L_actual
 
+                                # Apply the scaling factor to the ellipse
+                                X_ellipse_scaled = xc + scale_factor * (X_ellipse) #- xc)
+                                Z_ellipse_scaled = zc + scale_factor * (Z_ellipse)# - zc)
 
-                        # ----------------------------------------------------------------------------------
-                        # 5. Express in Local Cartesian Coordinates, well orientated
-                        # ----------------------------------------------------------------------------------
-                        local_coords = np.dot(rotation_matrix_inv, projected_trajectory.T).T
-                        x_local = local_coords[:, 0]
-                        y_local = local_coords[:, 1]
-                        z_local = local_coords[:, 2]
+                                idx_max = np.argmax(Z_ellipse_scaled)
+                                idx_min = np.argmin(Z_ellipse_scaled)
+                                x_at_Z_max = X_ellipse_scaled[idx_max]
+                                x_at_Z_min = X_ellipse_scaled[idx_min]
 
-                        # Intersection points in local coords
-                        intersections_local = np.dot(rotation_matrix_inv, intersection_points.T).T
-                        x_inter_local = intersections_local[:, 0]
-                        y_inter_local = intersections_local[:, 1]
+                                # Scale the intersection points
+                                x1_scaled = xc + scale_factor * (x1)# - xc)
+                                x2_scaled = xc + scale_factor * (x2)# - xc)
 
-                        # ----------------------------------------------------------------------------------
-                        # (5A) ELLIPSE CONTOUR IN LOCAL COORDS
-                        # ----------------------------------------------------------------------------------
-                        ellipse_3d = np.vstack([X_ellipse_scaled, np.zeros_like(X_ellipse_scaled), Z_ellipse_scaled]).T
-                        ellipse_local = np.dot(rotation_matrix_inv, ellipse_3d.T).T
-                        x_ellipse_local = ellipse_local[:, 0]
-                        y_ellipse_local = ellipse_local[:, 1]
+                                Z_max_scaled = zc + scale_factor * (Z_max )#- zc)
+                                z_cut_scaled = zc + scale_factor * (z_cut)# - zc)
 
-                        # ----------------------------------------------------------------------------------
-                        # (5B) ROTATION to align the trajectory horizontally
-                        # ----------------------------------------------------------------------------------
-                        dx = x_local[-1] - x_local[0]
-                        dy = y_local[-1] - y_local[0]
-                        trajectory_angle = np.arctan2(dy, dx) + np.pi
+                                X_intersections_scaled = np.array([x1_scaled, x2_scaled])
+                                Z_intersections_scaled = np.full_like(X_intersections_scaled, z_cut_scaled)
 
-                        rotation_2d = np.array([
-                            [np.cos(-trajectory_angle), -np.sin(-trajectory_angle)],
-                            [np.sin(-trajectory_angle),  np.cos(-trajectory_angle)]
-                        ])
+                                # Scale the cylinder (only once)
+                                X_rot_scaled = X_rot_centered * scale_factor
+                                Y_rot_scaled = Y_rot_centered * scale_factor
+                                Z_rot_scaled = Z_rot_centered * scale_factor
 
-                        # Rotate the ELLIPSE in local coords
-                        ellipse_local_2d = np.vstack([x_ellipse_local, y_ellipse_local]).T
-                        ellipse_rotated = (rotation_2d @ ellipse_local_2d.T).T
-                        x_ellipse_rotated = ellipse_rotated[:, 0]
-                        y_ellipse_rotated = ellipse_rotated[:, 1]
+                                # 3.3 Satellite Trajectory
+                                # ----------------------------------------------------------------------------------
+                                xs = np.linspace(x1_scaled, x2_scaled, num=100)  # X points along the cut
+                                ys = np.zeros_like(xs)  # y=0 plane
+                                zs = np.full_like(xs, z_cut_scaled)  # Constant height at z_cut_scaled
 
-                        # Rotate the TRAJECTORY
-                        trajectory_local_2d = np.vstack([x_local, y_local]).T
-                        trajectory_rotated = (rotation_2d @ trajectory_local_2d.T).T
-                        x_traj_rotated = trajectory_rotated[:, 0]
-                        y_traj_rotated = trajectory_rotated[:, 1]
+                                # 3.4 Ellipse Boundaries and Reference Lines
+                                # ----------------------------------------------------------------------------------
+                                x_min = np.min(X_ellipse_scaled)
+                                x_max = np.max(X_ellipse_scaled)
+                                z_min = np.min(Z_ellipse_scaled)
+                                z_max = np.max(Z_ellipse_scaled)
 
-                        x_traj = x_traj_rotated
-                        y_traj = y_traj_rotated
+                                # Adjust small margins so the ellipse doesn’t touch the edges
+                                margin = 0.1 * (x_max - x_min)  # 10% margin of the range
+                                x_limits = [x_min - margin, x_max + margin]
+                                z_limits = [z_min - margin, z_max + margin]
 
-                        # Rotate the INTERSECTION POINTS
-                        intersections_rotated = (rotation_2d @ np.vstack([x_inter_local, y_inter_local])).T
-                        x_inter_rotated = intersections_rotated[:, 0]
-                        y_inter_rotated = intersections_rotated[:, 1]
+                                # Find the highest point of the ellipse
+                                max_z_index = np.argmax(Z_ellipse_scaled)
+                                x_max_z = X_ellipse_scaled[max_z_index]  # X at the maximum Z point
 
-                        # ----------------------------------------------------------------------------------
-                        # (EXTRA) DEFINE CHORDS and ROTATE THEM
-                        # ----------------------------------------------------------------------------------
-                        a_local = np.max(np.abs(x_ellipse_local))  # horizontal semi-axis (major axis)
-                        b_local = np.max(np.abs(y_ellipse_local))  # vertical semi-axis (minor axis)
+                                # Calculate limits of the lines within the ellipse
+                                indices_z_zero = np.where(np.abs(Z_ellipse_scaled - 0) < 1e-2)[0]
+                                x_z_zero_limits = np.sort(X_ellipse_scaled[indices_z_zero]) if len(indices_z_zero) >= 2 else [x_min, x_max]
+                                indices_x_max_z = np.where(np.abs(X_ellipse_scaled - x_max_z) < 1e-2)[0]
+                                z_x_max_z_limits = np.sort(Z_ellipse_scaled[indices_x_max_z]) if len(indices_x_max_z) >= 2 else [z_min, z_max]
 
-                        # Horizontal chord in local coords: y=0
-                        h_line_local = np.array([[-a_local, 0],
-                                                [ a_local, 0]])
-                        # Vertical chord in local coords: x=0
-                        v_line_local = np.array([[0, -b_local],
-                                                [0,  b_local]])
+                                # Calculate the upper half of the vertical line
+                                z_mid = (z_x_max_z_limits[0] + z_x_max_z_limits[1]) / 2
+                                z_upper_limit = z_x_max_z_limits[1]
+                                z_lower_limit_upper_half = z_mid
+                                height_upper_half = z_upper_limit - z_lower_limit_upper_half
+                                relative_position = z_cut_scaled - z_lower_limit_upper_half
+                                percentage_in_upper_half = (relative_position / height_upper_half) * 100 if height_upper_half > 0 else 0
 
-                        # Rotate them
-                        h_line_rotated = (rotation_2d @ h_line_local.T).T
-                        v_line_rotated = (rotation_2d @ v_line_local.T).T
+                                # st.write(f"Percentage of the trajectory height in the upper half of maximum z: {percentage_in_upper_half:.2f}%")
 
-                        # We will treat h_line_rotated[1] as the "positive side" of the chord
-                        # i.e., the end that extends in the positive-X direction in the local coords
-                        chord_xr, chord_yr = h_line_rotated[1]  # endpoint of horizontal chord in rotated coords
-
-                        # Angle of the chord in the rotated frame
-                        chord_angle_right = np.degrees(np.arctan2(chord_yr, chord_xr)) % 360
-
-                        # ------------------------------------------------------------------------------
-                        # EXAMPLE: SAVE INTERSECTION ANGLE 0 AND 1, THEN LINSPACE
-                        # ------------------------------------------------------------------------------
-                        # Suppose we want the angles from the LEFT subplot for Intersection 0 and Intersection 1:
-                        angle_0 = np.degrees(np.arctan2(y_inter_local[0], x_inter_local[0])) % 360
-                        angle_1 = np.degrees(np.arctan2(y_inter_local[1], x_inter_local[1])) % 360
-
-                        # Ensure we go from smaller to larger
-                        start_angle = min(angle_0, angle_1)
-                        end_angle   = max(angle_0, angle_1)
-
-                        angles_traj = np.linspace(start_angle, end_angle, 10)
-
-                        # # ----------------------------------------------------------------------------------
-                        # # 6. 3D Representation
-                        # # ----------------------------------------------------------------------------------
-                        # (7) TRAJECTORY VECTORS
-                        # # ----------------------------------------------------------------------------------
-                        xc, zc, theta = 0, 0, 0
-
-                        # Define the elliptical_coords function (already provided)
-                        def elliptical_coords(x, z, xc, zc, a, b, theta):
-                            X = x - xc
-                            Z = z - zc
-                            cos_t = np.cos(-theta)
-                            sin_t = np.sin(-theta)
-                            Xp = X * cos_t - Z * sin_t
-                            Zp = X * sin_t + Z * cos_t
-                            r = np.sqrt((Xp / a)**2 + (Zp / b)**2)
-                            alpha = np.arctan2(Zp / b, Xp / a)
-                            alpha = np.mod(alpha, 2 * np.pi)
-                            return r, alpha
-
-                        # Compute elliptical coordinates for the trajectory
-                        r_vals, phi_vals = elliptical_coords(x_local, y_local, xc, zc, a_local, b_local, theta)
-
-                        # Compute elliptical coordinates for the intersection points
-                        r_inter, phi_inter = elliptical_coords(x_inter_local, y_inter_local, xc, zc, a_local, b_local, theta)
-
-                        # Use the intersection angles from elliptical coordinates for linspace
-                        angle_0 = np.degrees(phi_inter[0])  # 80.06°
-                        angle_1 = np.degrees(phi_inter[1])  # 178.97°
-
-                        # Ensure we go from smaller to larger angle
-                        start_angle = min(angle_0, angle_1)
-                        end_angle = max(angle_0, angle_1)
-
-                        # Generate 10 equally spaced angles in elliptical coordinate space
-                        angles_traj = np.linspace(start_angle, end_angle, 10)
-                        phi_vals_deg = np.degrees(phi_vals)
-
-
-
-                        # ----------------------------------------------------------------------------------
-                        # 8. Express the in-situ data in the Local Cartesian Coordinate System
-                        # ----------------------------------------------------------------------------------
-                        # Transform GSE data to Local Cartesian coordinates using the inverse rotation matrix
-                        Bx_GSE_exp = Bx_exp[::-1]
-                        By_GSE_exp = By_exp[::-1]
-                        Bz_GSE_exp = Bz_exp[::-1]
-                        B_GSE_exp_tot = np.sqrt(Bx_GSE_exp**2 + By_GSE_exp**2 + Bz_GSE_exp**2)
-
-                        B_gse_exp = np.vstack([Bx_exp, By_exp, Bz_exp])
-                        x_traj_GSE = x_traj[::-1]
-
-                        # --- Transform exported GSE components back to local coordinates ---
-                        B_local_exp = rotation_matrix @ np.vstack((Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp))
-                        Bx_Local_exp = -B_local_exp[0, :]
-                        By_Local_exp = -B_local_exp[2, :]
-                        Bz_Local_exp = B_local_exp[1, :]
-                        B_Local_total_exp = np.sqrt(Bx_Local_exp**2 + By_Local_exp**2 + Bz_Local_exp**2)
-
-                        # ----------------------------------------------------------------------------------
-                        # 9. Express the in-situ data in the Local CYLINDRICAL Coordinate System
-                        # ----------------------------------------------------------------------------------
-
-
-                        a_ell = 1
-
-                        # Compute metric components along the trajectory
-                        grr_traj = a_ell**2 * (np.cos(phi_vals)**2 + delta**2 * np.sin(phi_vals)**2)
-                        gyy_traj = np.ones_like(r_vals)
-                        gphiphi_traj = a_ell**2 * r_vals**2 * (np.sin(phi_vals)**2 + delta**2 * np.cos(phi_vals)**2)
-                        grphi_traj = a_ell**2 * r_vals * np.sin(phi_vals) * np.cos(phi_vals) * (delta**2 - 1)
-
-                        # --- Define the transformation coefficients ---
-                        cos_phi = np.cos(phi_vals)
-                        sin_phi = np.sin(phi_vals)
-                        coeff1 = a_ell * cos_phi          # a * cos(φ)
-                        coeff2 = -a_ell * r_vals * sin_phi  # -a * r * sin(φ)
-                        coeff3 = a_ell * delta * sin_phi    # a * δ * sin(φ)
-                        coeff4 = a_ell * delta * r_vals * cos_phi  # a * δ * r * cos(φ)
-
-                        # --- Transform to cylindrical coordinates by solving the system ---
-                        Br_exp = np.zeros_like(r_vals)
-                        Bphi_exp = np.zeros_like(r_vals)
-                        determinants = []  # To track determinant stability
-
-                        for i in range(len(r_vals)):
-                            A_matrix = np.array([[coeff1[i], coeff2[i]], [coeff3[i], coeff4[i]]])
-                            det = np.linalg.det(A_matrix)
-                            determinants.append(det)  # Store determinant for diagnostics
-                            b_vector = np.array([Bx_Local_exp[i], Bz_Local_exp[i]])
-                            if np.abs(det) > 1e-10:  # Check for invertibility
-                                Br_Bphi = np.linalg.solve(A_matrix, b_vector)
-                                Br_exp[i] = Br_Bphi[0]  # B^r
-                                Bphi_exp[i] = Br_Bphi[1]  # B^φ
                             else:
-                                Br_exp[i] = 0
-                                Bphi_exp[i] = 0
-                                print(f"Warning: Singular matrix at index {i}, det = {det:.6e}")
-                        By_exp_cyl = By_Local_exp 
+                                print("\nNo real solutions found for the cut at Z =", z_cut)
+                                exit()
 
-                        # --- Compute the modulus in cylindrical coordinates for exported data ---
-                        B_total_exp_cyl = np.sqrt(
-                            grr_traj * Br_exp**2 +
-                            gyy_traj * By_exp**2 +
-                            gphiphi_traj * Bphi_exp**2 +
-                            2 * grphi_traj * Br_exp * Bphi_exp
-                        )
-   
+                            # ----------------------------------------------------------------------------------
+                            # 4. Projection onto the Transverse Plane
+                            # ----------------------------------------------------------------------------------
                         
-                        # ----------------------------------------------------------------------------------
-                        # 10. Fitting Magnetic Field Models to Noisy Cylindrical Data
-                        # ----------------------------------------------------------------------------------
-                        
-                        # 10.1. Models for the fitting
-                        #------------------------------------------------------------------------------------------------
-                        def model_Br(r_alpha, a):
-                            a = 0
-                            r, alpha = r_alpha
-                            return np.zeros_like(r)
+                            # 4.1 Compute Cylinder Axis and Plane Equation
+                            # ----------------------------------------------------------------------------------
+                            axis_cylinder = rotation_matrix @ np.array([0, 0, 1])
 
-                        def model_By(r_alpha, A, B):
-                            r, alpha = r_alpha
-                            r = r * a_local * 10**3
-                            return A + B * r**2
+                            center_point = np.array([xc, 0, zc])
+                            d = np.dot(axis_cylinder, center_point)
+                            # print(f"Transverse plane constant: d = {d:.6f}")
 
-                        def model_Bphi(r_alpha, C):
-                            r, alpha = r_alpha
-                            r = r * a_local * 10**3
-                            return C * r
+                            axis_cylinder_norm = axis_cylinder / np.linalg.norm(axis_cylinder)
 
-                        # Data preparation (keeping your original structure)
-                        data_fit = np.vstack((r_vals, phi_vals)).T
+                            # ----------------------------------------------------------------------
+                            # Projections to the plane: 
+                            # ----------------------------------------------------------------------
 
-                        # Initial guesses for the fitting
-                        initial_guess_Br = [0.0]  # For Br (although it’s fixed at 0)
-                        initial_guess_By = [1.0, 1.0]  # [A, B]
-                        initial_guess_Bphi = [1.0]  # [C]
+                            def project_to_plane(point, normal, d):
+                                dot_product = np.dot(normal, point)
+                                t = (d - dot_product) / np.dot(normal, normal)
+                                projected_point = point + t * normal
+                                return projected_point
+                            
+                            # 4.2 Project the ellipse
+                            # ----------------------------------------------------------------------
+                            X_ellipse_3d = np.vstack([X_ellipse_scaled, np.zeros_like(X_ellipse_scaled), Z_ellipse_scaled]).T
+                            projected_ellipse = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in X_ellipse_3d])
+                            X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse = projected_ellipse[:, 0], projected_ellipse[:, 1], projected_ellipse[:, 2]
 
-                        try:
-                            # Curve fitting for each component
-                            params_Br, _ = curve_fit(model_Br, data_fit.T, Br_exp, p0=initial_guess_Br)
-                            a_Br = params_Br[0]  # Extract the scalar value
-                            Br_fitted = model_Br(data_fit.T, a_Br)
+                            # 4.3 Project the intersection points
+                            # ----------------------------------------------------------------------
+                            intersection_points = np.array([[x1_scaled, 0, z_cut_scaled], [x2_scaled, 0, z_cut_scaled]])
+                            projected_intersections = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in intersection_points])
+                            X_proj_inter, Y_proj_inter, Z_proj_inter = projected_intersections[:, 0], projected_intersections[:, 1], projected_intersections[:, 2]
 
-                            params_By, _ = curve_fit(model_By, data_fit.T, By_exp_cyl, p0=initial_guess_By)  # Use By_exp_cyl
-                            A_By, B_By = params_By
-                            By_fitted = model_By(data_fit.T, A_By, B_By)
+                            # 4.4 Project the cut trajectory
+                            # ----------------------------------------------------------------------
+                            n_points = len(Bx_exp)
+                            X_traj = np.linspace(x1_scaled, x2_scaled, n_points)
+                            Y_traj = np.zeros_like(X_traj)
+                            Z_traj = np.full_like(X_traj, z_cut_scaled)
+                            trajectory_points = np.vstack([X_traj, Y_traj, Z_traj]).T
+                            projected_trajectory = np.array([project_to_plane(p, axis_cylinder_norm, d) for p in trajectory_points])
+                            X_proj_traj, Y_proj_traj, Z_proj_traj = projected_trajectory[:, 0], projected_trajectory[:, 1], projected_trajectory[:, 2]
 
-                            params_Bphi, _ = curve_fit(model_Bphi, data_fit.T, Bphi_exp, p0=initial_guess_Bphi)
-                            C_Bphi = params_Bphi[0]
-                            Bphi_fitted = model_Bphi(data_fit.T, C_Bphi)
+                            # 4.5 Fit an ellipse to the centered projected ellipse points
+                            # ----------------------------------------------------------------------
+                            ellipse_model = EllipseModel()
+                            ellipse_points = np.column_stack((X_proj_ellipse, Y_proj_ellipse))
+                            ellipse_model.estimate(ellipse_points)
+                            xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params
+                            xc_proj, yc_proj = 0, 0  # Already centered at the origin
 
-                            # Calculation of R² for each component
-                            ss_tot_Br = np.sum((Br_exp - np.mean(Br_exp))**2)
-                            ss_res_Br = np.sum((Br_exp - Br_fitted)**2)
-                            R2_Br = 1 - (ss_res_Br / ss_tot_Br) if ss_tot_Br != 0 else 0
+                            # Calculate the slope of the projected trajectory
+                            # ----------------------------------------------------------------------
+                            slope_traj = (Y_proj_traj[-1] - Y_proj_traj[0]) / (X_proj_traj[-1] - X_proj_traj[0]) if (X_proj_traj[-1] - X_proj_traj[0]) != 0 else float('inf')
+                            trajectory_angle = np.arctan2(Y_proj_traj[-1] - Y_proj_traj[0], X_proj_traj[-1] - X_proj_traj[0])
 
-                            ss_tot_By = np.sum((By_exp_cyl - np.mean(By_exp_cyl))**2)
-                            ss_res_By = np.sum((By_exp_cyl - By_fitted)**2)
+
+                            # ----------------------------------------------------------------------------------
+                            # 5. Express in Local Cartesian Coordinates, well orientated
+                            # ----------------------------------------------------------------------------------
+                            local_coords = np.dot(rotation_matrix_inv, projected_trajectory.T).T
+                            x_local = local_coords[:, 0]
+                            y_local = local_coords[:, 1]
+                            z_local = local_coords[:, 2]
+
+                            # Intersection points in local coords
+                            intersections_local = np.dot(rotation_matrix_inv, intersection_points.T).T
+                            x_inter_local = intersections_local[:, 0]
+                            y_inter_local = intersections_local[:, 1]
+
+                            # ----------------------------------------------------------------------------------
+                            # (5A) ELLIPSE CONTOUR IN LOCAL COORDS
+                            # ----------------------------------------------------------------------------------
+                            ellipse_3d = np.vstack([X_ellipse_scaled, np.zeros_like(X_ellipse_scaled), Z_ellipse_scaled]).T
+                            ellipse_local = np.dot(rotation_matrix_inv, ellipse_3d.T).T
+                            x_ellipse_local = ellipse_local[:, 0]
+                            y_ellipse_local = ellipse_local[:, 1]
+
+                            # ----------------------------------------------------------------------------------
+                            # (5B) ROTATION to align the trajectory horizontally
+                            # ----------------------------------------------------------------------------------
+                            dx = x_local[-1] - x_local[0]
+                            dy = y_local[-1] - y_local[0]
+                            trajectory_angle = np.arctan2(dy, dx) + np.pi
+
+                            rotation_2d = np.array([
+                                [np.cos(-trajectory_angle), -np.sin(-trajectory_angle)],
+                                [np.sin(-trajectory_angle),  np.cos(-trajectory_angle)]
+                            ])
+
+                            # Rotate the ELLIPSE in local coords
+                            ellipse_local_2d = np.vstack([x_ellipse_local, y_ellipse_local]).T
+                            ellipse_rotated = (rotation_2d @ ellipse_local_2d.T).T
+                            x_ellipse_rotated = ellipse_rotated[:, 0]
+                            y_ellipse_rotated = ellipse_rotated[:, 1]
+
+                            # Rotate the TRAJECTORY
+                            trajectory_local_2d = np.vstack([x_local, y_local]).T
+                            trajectory_rotated = (rotation_2d @ trajectory_local_2d.T).T
+                            x_traj_rotated = trajectory_rotated[:, 0]
+                            y_traj_rotated = trajectory_rotated[:, 1]
+
+                            x_traj = x_traj_rotated
+                            y_traj = y_traj_rotated
+
+                            # Rotate the INTERSECTION POINTS
+                            intersections_rotated = (rotation_2d @ np.vstack([x_inter_local, y_inter_local])).T
+                            x_inter_rotated = intersections_rotated[:, 0]
+                            y_inter_rotated = intersections_rotated[:, 1]
+
+                            # ----------------------------------------------------------------------------------
+                            # (EXTRA) DEFINE CHORDS and ROTATE THEM
+                            # ----------------------------------------------------------------------------------
+                            a_local = np.max(np.abs(x_ellipse_local))  # horizontal semi-axis (major axis)
+                            b_local = np.max(np.abs(y_ellipse_local))  # vertical semi-axis (minor axis)
+
+                            # Horizontal chord in local coords: y=0
+                            h_line_local = np.array([[-a_local, 0],
+                                                    [ a_local, 0]])
+                            # Vertical chord in local coords: x=0
+                            v_line_local = np.array([[0, -b_local],
+                                                    [0,  b_local]])
+
+                            # Rotate them
+                            h_line_rotated = (rotation_2d @ h_line_local.T).T
+                            v_line_rotated = (rotation_2d @ v_line_local.T).T
+
+                            # We will treat h_line_rotated[1] as the "positive side" of the chord
+                            # i.e., the end that extends in the positive-X direction in the local coords
+                            chord_xr, chord_yr = h_line_rotated[1]  # endpoint of horizontal chord in rotated coords
+
+                            # Angle of the chord in the rotated frame
+                            chord_angle_right = np.degrees(np.arctan2(chord_yr, chord_xr)) % 360
+
+                            # ------------------------------------------------------------------------------
+                            # EXAMPLE: SAVE INTERSECTION ANGLE 0 AND 1, THEN LINSPACE
+                            # ------------------------------------------------------------------------------
+                            # Suppose we want the angles from the LEFT subplot for Intersection 0 and Intersection 1:
+                            angle_0 = np.degrees(np.arctan2(y_inter_local[0], x_inter_local[0])) % 360
+                            angle_1 = np.degrees(np.arctan2(y_inter_local[1], x_inter_local[1])) % 360
+
+                            # Ensure we go from smaller to larger
+                            start_angle = min(angle_0, angle_1)
+                            end_angle   = max(angle_0, angle_1)
+
+                            angles_traj = np.linspace(start_angle, end_angle, 10)
+
+                            # # ----------------------------------------------------------------------------------
+                            # # 6. 3D Representation
+                            # # ----------------------------------------------------------------------------------
+                            # (7) TRAJECTORY VECTORS
+                            # # ----------------------------------------------------------------------------------
+                            xc, zc, theta = 0, 0, 0
+
+                            # Define the elliptical_coords function (already provided)
+                            def elliptical_coords(x, z, xc, zc, a, b, theta):
+                                X = x - xc
+                                Z = z - zc
+                                cos_t = np.cos(-theta)
+                                sin_t = np.sin(-theta)
+                                Xp = X * cos_t - Z * sin_t
+                                Zp = X * sin_t + Z * cos_t
+                                r = np.sqrt((Xp / a)**2 + (Zp / b)**2)
+                                alpha = np.arctan2(Zp / b, Xp / a)
+                                alpha = np.mod(alpha, 2 * np.pi)
+                                return r, alpha
+
+                            # Compute elliptical coordinates for the trajectory
+                            r_vals, phi_vals = elliptical_coords(x_local, y_local, xc, zc, a_local, b_local, theta)
+
+                            # Compute elliptical coordinates for the intersection points
+                            r_inter, phi_inter = elliptical_coords(x_inter_local, y_inter_local, xc, zc, a_local, b_local, theta)
+
+                            # Use the intersection angles from elliptical coordinates for linspace
+                            angle_0 = np.degrees(phi_inter[0])  # 80.06°
+                            angle_1 = np.degrees(phi_inter[1])  # 178.97°
+
+                            # Ensure we go from smaller to larger angle
+                            start_angle = min(angle_0, angle_1)
+                            end_angle = max(angle_0, angle_1)
+
+                            # Generate 10 equally spaced angles in elliptical coordinate space
+                            angles_traj = np.linspace(start_angle, end_angle, 10)
+                            phi_vals_deg = np.degrees(phi_vals)
+
+
+
+                            # ----------------------------------------------------------------------------------
+                            # 8. Express the in-situ data in the Local Cartesian Coordinate System
+                            # ----------------------------------------------------------------------------------
+                            # Transform GSE data to Local Cartesian coordinates using the inverse rotation matrix
+                            Bx_GSE_exp = Bx_exp[::-1]
+                            By_GSE_exp = By_exp[::-1]
+                            Bz_GSE_exp = Bz_exp[::-1]
+                            B_GSE_exp_tot = np.sqrt(Bx_GSE_exp**2 + By_GSE_exp**2 + Bz_GSE_exp**2)
+
+                            B_gse_exp = np.vstack([Bx_exp, By_exp, Bz_exp])
+                            x_traj_GSE = x_traj[::-1]
+
+                            # --- Transform exported GSE components back to local coordinates ---
+                            B_local_exp = rotation_matrix @ np.vstack((Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp))
+                            Bx_Local_exp = -B_local_exp[0, :]
+                            By_Local_exp = -B_local_exp[2, :]
+                            Bz_Local_exp = B_local_exp[1, :]
+                            B_Local_total_exp = np.sqrt(Bx_Local_exp**2 + By_Local_exp**2 + Bz_Local_exp**2)
+
+                            # ----------------------------------------------------------------------------------
+                            # 9. Express the in-situ data in the Local CYLINDRICAL Coordinate System
+                            # ----------------------------------------------------------------------------------
+
+
+                            a_ell = 1
+
+                            # Compute metric components along the trajectory
+                            grr_traj = a_ell**2 * (np.cos(phi_vals)**2 + delta**2 * np.sin(phi_vals)**2)
+                            gyy_traj = np.ones_like(r_vals)
+                            gphiphi_traj = a_ell**2 * r_vals**2 * (np.sin(phi_vals)**2 + delta**2 * np.cos(phi_vals)**2)
+                            grphi_traj = a_ell**2 * r_vals * np.sin(phi_vals) * np.cos(phi_vals) * (delta**2 - 1)
+
+                            # --- Define the transformation coefficients ---
+                            cos_phi = np.cos(phi_vals)
+                            sin_phi = np.sin(phi_vals)
+                            coeff1 = a_ell * cos_phi          # a * cos(φ)
+                            coeff2 = -a_ell * r_vals * sin_phi  # -a * r * sin(φ)
+                            coeff3 = a_ell * delta * sin_phi    # a * δ * sin(φ)
+                            coeff4 = a_ell * delta * r_vals * cos_phi  # a * δ * r * cos(φ)
+
+                            # --- Transform to cylindrical coordinates by solving the system ---
+                            Br_exp = np.zeros_like(r_vals)
+                            Bphi_exp = np.zeros_like(r_vals)
+                            determinants = []  # To track determinant stability
+
+                            for i in range(len(r_vals)):
+                                A_matrix = np.array([[coeff1[i], coeff2[i]], [coeff3[i], coeff4[i]]])
+                                det = np.linalg.det(A_matrix)
+                                determinants.append(det)  # Store determinant for diagnostics
+                                b_vector = np.array([Bx_Local_exp[i], Bz_Local_exp[i]])
+                                if np.abs(det) > 1e-10:  # Check for invertibility
+                                    Br_Bphi = np.linalg.solve(A_matrix, b_vector)
+                                    Br_exp[i] = Br_Bphi[0]  # B^r
+                                    Bphi_exp[i] = Br_Bphi[1]  # B^φ
+                                else:
+                                    Br_exp[i] = 0
+                                    Bphi_exp[i] = 0
+                                    print(f"Warning: Singular matrix at index {i}, det = {det:.6e}")
+                            By_exp_cyl = By_Local_exp 
+
+                            # --- Compute the modulus in cylindrical coordinates for exported data ---
+                            B_total_exp_cyl = np.sqrt(
+                                grr_traj * Br_exp**2 +
+                                gyy_traj * By_exp**2 +
+                                gphiphi_traj * Bphi_exp**2 +
+                                2 * grphi_traj * Br_exp * Bphi_exp
+                            )
+    
+                            
+                            # ----------------------------------------------------------------------------------
+                            # 10. Fitting Magnetic Field Models to Noisy Cylindrical Data
+                            # ----------------------------------------------------------------------------------
+                            
+                            # 10.1. Models for the fitting
+                            #------------------------------------------------------------------------------------------------
+                            def model_Br(r_alpha, a):
+                                a = 0
+                                r, alpha = r_alpha
+                                return np.zeros_like(r)
+
+                            def model_By(r_alpha, A, B):
+                                r, alpha = r_alpha
+                                r = r * a_local * 10**3
+                                return A + B * r**2
+
+                            def model_Bphi(r_alpha, C):
+                                r, alpha = r_alpha
+                                r = r * a_local * 10**3
+                                return C * r
+
+                            # Data preparation (keeping your original structure)
+                            data_fit = np.vstack((r_vals, phi_vals)).T
+
+                            # Initial guesses for the fitting
+                            initial_guess_Br = [0.0]  # For Br (although it’s fixed at 0)
+                            initial_guess_By = [1.0, 1.0]  # [A, B]
+                            initial_guess_Bphi = [1.0]  # [C]
+
+                            try:
+                                # Curve fitting for each component
+                                params_Br, _ = curve_fit(model_Br, data_fit.T, Br_exp, p0=initial_guess_Br)
+                                a_Br = params_Br[0]  # Extract the scalar value
+                                Br_fitted = model_Br(data_fit.T, a_Br)
+
+                                params_By, _ = curve_fit(model_By, data_fit.T, By_exp_cyl, p0=initial_guess_By)  # Use By_exp_cyl
+                                A_By, B_By = params_By
+                                By_fitted = model_By(data_fit.T, A_By, B_By)
+
+                                params_Bphi, _ = curve_fit(model_Bphi, data_fit.T, Bphi_exp, p0=initial_guess_Bphi)
+                                C_Bphi = params_Bphi[0]
+                                Bphi_fitted = model_Bphi(data_fit.T, C_Bphi)
+
+                                # Calculation of R² for each component
+                                ss_tot_Br = np.sum((Br_exp - np.mean(Br_exp))**2)
+                                ss_res_Br = np.sum((Br_exp - Br_fitted)**2)
+                                R2_Br = 1 - (ss_res_Br / ss_tot_Br) if ss_tot_Br != 0 else 0
+
+                                ss_tot_By = np.sum((By_exp_cyl - np.mean(By_exp_cyl))**2)
+                                ss_res_By = np.sum((By_exp_cyl - By_fitted)**2)
+                                R2_By = 1 - (ss_res_By / ss_tot_By) if ss_tot_By != 0 else 0
+
+                                ss_tot_Bphi = np.sum((Bphi_exp - np.mean(Bphi_exp))**2)
+                                ss_res_Bphi = np.sum((Bphi_exp - Bphi_fitted)**2)
+                                R2_Bphi = 1 - (ss_res_Bphi / ss_tot_Bphi) if ss_tot_Bphi != 0 else 0
+
+                                R2_avg = (R2_Br + R2_By + R2_Bphi) / 3
+
+                                # Fitted vectors
+                                Br_vector = model_Br(data_fit.T, a_Br)
+                                By_vector = model_By(data_fit.T, A_By, B_By)
+                                Bphi_vector = model_Bphi(data_fit.T, C_Bphi)
+
+                                B_vector = np.sqrt(
+                                    grr_traj * Br_vector**2 +
+                                    gyy_traj * By_vector**2 +
+                                    gphiphi_traj * Bphi_vector**2 +
+                                    2 * grphi_traj * Br_vector * Bphi_vector
+                                )
+
+                            except RuntimeError:
+                                st.write("Error in curve fitting: an optimal solution could not be found")
+
+
+                            # ----------------------------------------------------------------------------------
+                            # 11. Go back to local and then GSE coordinate system (for the fitted values)
+                            # ----------------------------------------------------------------------------------
+
+                            # --- Transformation to local Cartesian coordinates ---
+                            Bx_traj = Br_vector * a_ell * np.cos(phi_vals) - Bphi_vector * a_ell * r_vals * np.sin(phi_vals)
+                            By_traj_cartesian = By_vector  # By is already aligned with the local y-axis
+                            Bz_traj = Br_vector * a_ell * delta * np.sin(phi_vals) + Bphi_vector * delta * a_ell * r_vals * np.cos(phi_vals)
+                            B_vector = np.sqrt(Bx_traj**2 + By_traj_cartesian**2 + Bz_traj**2)
+
+                            # --- Transformation to GSE coordinates (requires rotation_matrix) ---
+                            B_local = np.vstack((-Bx_traj, Bz_traj, -By_traj_cartesian))  # Shape: (3, N_points)
+                            B_GSE = rotation_matrix_inv @ B_local  # Shape: (3, N_points)
+                            Bx_GSE = B_GSE[0, :]
+                            By_GSE = B_GSE[1, :]
+                            Bz_GSE = B_GSE[2, :]
+                            B_total_GSE = np.sqrt(Bx_GSE**2 + By_GSE**2 + Bz_GSE**2)
+
+                            x_traj_GSE = x_traj[::-1]
+
+                            # ----------------------------------------------------------------------------------
+                            # 12. Compute quality factor for the original in-situ data
+                            # ----------------------------------------------------------------------------------
+
+                            # Slice original data to match the fitted segment
+                            B_data_segment = B_data[initial_point - 1:final_point - 1]
+                            Bx_data_segment = Bx_data[initial_point - 1:final_point - 1]
+                            By_data_segment = By_data[initial_point - 1:final_point - 1]
+                            Bz_data_segment = Bz_data[initial_point - 1:final_point - 1]
+
+                            B_data_segment = B_data_segment[::-1]
+                            Bx_data_segment = Bx_data_segment[::-1]
+                            By_data_segment = By_data_segment[::-1]
+                            Bz_data_segment = Bz_data_segment[::-1]
+
+                            # Calculation of the coefficient of determination R² (goodness-of-fit)
+                            # For the total magnetic field strength (B)
+                            ss_tot_B = np.sum((B_data_segment - np.mean(B_data_segment))**2)
+                            ss_res_B = np.sum((B_data_segment - B_vector)**2)
+                            R2_B = 1 - (ss_res_B / ss_tot_B) if ss_tot_B != 0 else 0
+
+                            # For the Bx component
+                            ss_tot_Bx = np.sum((Bx_data_segment - np.mean(Bx_data_segment))**2)
+                            ss_res_Bx = np.sum((Bx_data_segment - Bx_GSE)**2)
+                            R2_Bx = 1 - (ss_res_Bx / ss_tot_Bx) if ss_tot_Bx != 0 else 0
+
+                            # For the By component
+                            ss_tot_By = np.sum((By_data_segment - np.mean(By_data_segment))**2)
+                            ss_res_By = np.sum((By_data_segment - By_GSE)**2)
                             R2_By = 1 - (ss_res_By / ss_tot_By) if ss_tot_By != 0 else 0
 
-                            ss_tot_Bphi = np.sum((Bphi_exp - np.mean(Bphi_exp))**2)
-                            ss_res_Bphi = np.sum((Bphi_exp - Bphi_fitted)**2)
-                            R2_Bphi = 1 - (ss_res_Bphi / ss_tot_Bphi) if ss_tot_Bphi != 0 else 0
+                            # For the Bz component
+                            ss_tot_Bz = np.sum((Bz_data_segment - np.mean(Bz_data_segment))**2)
+                            ss_res_Bz = np.sum((Bz_data_segment - Bz_GSE)**2)
+                            R2_Bz = 1 - (ss_res_Bz / ss_tot_Bz) if ss_tot_Bz != 0 else 0
 
-                            R2_avg = (R2_Br + R2_By + R2_Bphi) / 3
-
-                            # Fitted vectors
-                            Br_vector = model_Br(data_fit.T, a_Br)
-                            By_vector = model_By(data_fit.T, A_By, B_By)
-                            Bphi_vector = model_Bphi(data_fit.T, C_Bphi)
-
-                            B_vector = np.sqrt(
-                                grr_traj * Br_vector**2 +
-                                gyy_traj * By_vector**2 +
-                                gphiphi_traj * Bphi_vector**2 +
-                                2 * grphi_traj * Br_vector * Bphi_vector
-                            )
-
-                        except RuntimeError:
-                            st.write("Error in curve fitting: an optimal solution could not be found")
+                            # Calculation of the average R²
+                            R2_avg = (R2_B + R2_Bx + R2_By + R2_Bz) / 4
 
 
-                        # ----------------------------------------------------------------------------------
-                        # 11. Go back to local and then GSE coordinate system (for the fitted values)
-                        # ----------------------------------------------------------------------------------
+                            # ----------------------------------------------------------------------------------
 
-                        # --- Transformation to local Cartesian coordinates ---
-                        Bx_traj = Br_vector * a_ell * np.cos(phi_vals) - Bphi_vector * a_ell * r_vals * np.sin(phi_vals)
-                        By_traj_cartesian = By_vector  # By is already aligned with the local y-axis
-                        Bz_traj = Br_vector * a_ell * delta * np.sin(phi_vals) + Bphi_vector * delta * a_ell * r_vals * np.cos(phi_vals)
-                        B_vector = np.sqrt(Bx_traj**2 + By_traj_cartesian**2 + Bz_traj**2)
+                            # Update best combination if current R2 is better
+                            if R2_avg > best_R2:
+                                best_R2 = R2_avg
 
-                        # --- Transformation to GSE coordinates (requires rotation_matrix) ---
-                        B_local = np.vstack((-Bx_traj, Bz_traj, -By_traj_cartesian))  # Shape: (3, N_points)
-                        B_GSE = rotation_matrix_inv @ B_local  # Shape: (3, N_points)
-                        Bx_GSE = B_GSE[0, :]
-                        By_GSE = B_GSE[1, :]
-                        Bz_GSE = B_GSE[2, :]
-                        B_total_GSE = np.sqrt(Bx_GSE**2 + By_GSE**2 + Bz_GSE**2)
+                                B_vector = B_vector[::-1]
+                                Bx_GSE   = Bx_GSE[::-1]
+                                By_GSE   = By_GSE[::-1]
+                                Bz_GSE   = Bz_GSE[::-1]
+                                
+                                # Parameter text for annotations with updated order
+                                param_text = (
+                                    f"Iter: {iteration_counter}\n"
+                                    r"$\theta_x$: " + f"{angle_x:.2f} rad\n"
+                                    r"$\theta_y$: " + f"{angle_y:.2f} rad\n"
+                                    r"$\theta_z$: " + f"{angle_z:.2f} rad\n"
+                                    f"z0: {z0:.2f}\n"
+                                    r"$\delta$: " + f"{delta:.2f}"
+                                )
 
-                        x_traj_GSE = x_traj[::-1]
+                                # ----------------------------------------------------------------------------------
+                                # Plot Combined) Cylindrical Components (Left) and Original Data Fitting (Right)
+                                # ----------------------------------------------------------------------------------
+                                # Creamos figura más grande para que los subplots ocupen más espacio
+                                fig, axes = plt.subplots(
+                                    4, 2,
+                                    figsize=(24, 18),                  # de 20x15 a 24x18
+                                    gridspec_kw={'width_ratios': [1, 1]}
+                                )
 
-                        # ----------------------------------------------------------------------------------
-                        # 12. Compute quality factor for the original in-situ data
-                        # ----------------------------------------------------------------------------------
+                                # ─── Columna izquierda: Componentes cilíndricas ────────────────────────────────────
+                                marker_size = 10
+                                # Br
+                                axes[0, 0].scatter(x_traj, Br_exp,      color='blue', label=r"$B_r^{exp}$", s=marker_size)
+                                axes[0, 0].plot(   x_traj, Br_vector,   color='cyan', linestyle='--', label=r"$B_r^{fit}$")
+                                axes[0, 0].set_title("Radial Component $B_r$")
+                                axes[0, 0].set_xlabel("a")
+                                axes[0, 0].set_ylabel(r"$B_r$ (nT)")
+                                axes[0, 0].legend()
+                                axes[0, 0].grid(True)
+                                # By
+                                axes[1, 0].scatter(x_traj, By_exp_cyl,      color='green', label=r"$B_y^{exp}$", s=marker_size)
+                                axes[1, 0].plot(   x_traj, By_vector,   color='lime',  linestyle='--', label=r"$B_y^{fit}$")
+                                axes[1, 0].set_title("Axial Component $B_y$")
+                                axes[1, 0].set_xlabel("a")
+                                axes[1, 0].set_ylabel(r"$B_y$ (nT)")
+                                axes[1, 0].legend()
+                                axes[1, 0].grid(True)
+                                # Bphi
+                                axes[2, 0].scatter(x_traj, Bphi_exp,      color='red',    label=r"$B_\phi^{exp}$", s=marker_size)
+                                axes[2, 0].plot(   x_traj, Bphi_vector,   color='orange', linestyle='--', label=r"$B_\phi^{fit}$")
+                                axes[2, 0].set_title("Azimuthal Component $B_\phi$")
+                                axes[2, 0].set_xlabel("a")
+                                axes[2, 0].set_ylabel(r"$B_\phi$ (nT)")
+                                axes[2, 0].legend()
+                                axes[2, 0].grid(True)
+                                # Eliminamos el cuarto eje vacío
+                                axes[3, 0].axis('off')
 
-                        # Slice original data to match the fitted segment
-                        B_data_segment = B_data[initial_point - 1:final_point - 1]
-                        Bx_data_segment = Bx_data[initial_point - 1:final_point - 1]
-                        By_data_segment = By_data[initial_point - 1:final_point - 1]
-                        Bz_data_segment = Bz_data[initial_point - 1:final_point - 1]
+                                # ─── Columna derecha: Datos originales vs. ajustados ───────────────────────────────
+                                adjusted_data = [B_vector, Bx_GSE, By_GSE, Bz_GSE]
+                                components    = ['B', 'Bx', 'By', 'Bz']
+                                data_compare  = [B_data, Bx_data, By_data, Bz_data]
+                                titles_compare = [
+                                    "Magnetic Field Intensity (B)",
+                                    "Magnetic Field Component Bx",
+                                    "Magnetic Field Component By",
+                                    "Magnetic Field Component Bz",
+                                ]
+                                start_segment = ddoy_data[initial_point - 1]
+                                end_segment   = ddoy_data[final_point - 2]
 
-                        B_data_segment = B_data_segment[::-1]
-                        Bx_data_segment = Bx_data_segment[::-1]
-                        By_data_segment = By_data_segment[::-1]
-                        Bz_data_segment = Bz_data_segment[::-1]
+                                for idx, (comp, orig, adj, title) in enumerate(zip(components, data_compare, adjusted_data, titles_compare)):
+                                    ax = axes[idx, 1]
+                                    ax.scatter(ddoy_data, orig, color='black', s=10, label=f'{comp} Original')
+                                    ax.plot(
+                                        ddoy_data[initial_point - 1: final_point - 1],
+                                        adj,
+                                        color='red', linestyle='--', linewidth=2, label=f'{comp} Fitted'
+                                    )
+                                    ax.axvline(x=start_segment, color='gray', linestyle='--', label='Start of Segment')
+                                    ax.axvline(x=end_segment,   color='gray', linestyle='--', label='End of Segment')
+                                    ax.set_title(title, fontsize=14, fontweight='bold')
+                                    ax.set_ylabel(f"{comp} (nT)", fontsize=12)
+                                    if idx == 3:
+                                        ax.set_xlabel("Day of the Year (ddoy)", fontsize=12)
+                                    ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+                                    ax.minorticks_on()
+                                    ax.legend(fontsize=10)
 
-                        # Calculation of the coefficient of determination R² (goodness-of-fit)
-                        # For the total magnetic field strength (B)
-                        ss_tot_B = np.sum((B_data_segment - np.mean(B_data_segment))**2)
-                        ss_res_B = np.sum((B_data_segment - B_vector)**2)
-                        R2_B = 1 - (ss_res_B / ss_tot_B) if ss_tot_B != 0 else 0
+                                # ─── Anotaciones de parámetros ────────────────────────────────────────────────────
+                                fig.text(
+                                    0.02, 0.03,            # posición, ligeramente movida para no recortar
+                                    param_text,
+                                    fontsize=28,           # tamaño de fuente duplicado
+                                    bbox=dict(
+                                        facecolor='white',
+                                        alpha=0.8,
+                                        boxstyle='square,pad=0.8'  # mismo boxstyle y padding que tenías
+                                    ),
+                                    verticalalignment='bottom',
+                                    horizontalalignment='left'
+                                )
 
-                        # For the Bx component
-                        ss_tot_Bx = np.sum((Bx_data_segment - np.mean(Bx_data_segment))**2)
-                        ss_res_Bx = np.sum((Bx_data_segment - Bx_GSE)**2)
-                        R2_Bx = 1 - (ss_res_Bx / ss_tot_Bx) if ss_tot_Bx != 0 else 0
+                                # ─── Ajuste de márgenes para maximizar espacio de ejes ─────────────────────────────
+                                plt.subplots_adjust(
+                                    left=0.03,    # margen izquierdo muy pequeño
+                                    right=0.97,   # margen derecho muy pequeño
+                                    top=0.97,     # margen superior pequeño
+                                    bottom=0.15,  # deja espacio para el texto abajo
+                                    wspace=0.35,  # reduce el espacio horizontal entre columnas
+                                    hspace=0.25   # reduce el espacio vertical entre filas
+                                )
 
-                        # For the By component
-                        ss_tot_By = np.sum((By_data_segment - np.mean(By_data_segment))**2)
-                        ss_res_By = np.sum((By_data_segment - By_GSE)**2)
-                        R2_By = 1 - (ss_res_By / ss_tot_By) if ss_tot_By != 0 else 0
-
-                        # For the Bz component
-                        ss_tot_Bz = np.sum((Bz_data_segment - np.mean(Bz_data_segment))**2)
-                        ss_res_Bz = np.sum((Bz_data_segment - Bz_GSE)**2)
-                        R2_Bz = 1 - (ss_res_Bz / ss_tot_Bz) if ss_tot_Bz != 0 else 0
-
-                        # Calculation of the average R²
-                        R2_avg = (R2_B + R2_Bx + R2_By + R2_Bz) / 4
-
-                        # ----------------------------------------------------------------------------------
-
-                        # Update best combination if current R2 is better
-                        if R2_avg > best_R2:
-                            best_R2 = R2_avg
-
-
-                            # # Parameter text for annotations with updated order
-                            # param_text = (
-                            #     f"Iter: {iteration_counter}\n"
-                            #     r"$\theta_x$: " + f"{angle_x:.2f} rad\n"
-                            #     r"$\theta_y$: " + f"{angle_y:.2f} rad\n"
-                            #     r"$\theta_z$: " + f"{angle_z:.2f} rad\n"
-                            #     f"z0: {z0:.2f}\n"
-                            #     r"$\delta$: " + f"{delta:.2f}"
-                            # )
-
-                            # # ----------------------------------------------------------------------------------
-                            # # Plot Combined) Cylindrical Components (Left) and Original Data Fitting (Right)
-                            # # ----------------------------------------------------------------------------------
-                            # # Creamos figura más grande para que los subplots ocupen más espacio
-                            # fig, axes = plt.subplots(
-                            #     4, 2,
-                            #     figsize=(24, 18),                  # de 20x15 a 24x18
-                            #     gridspec_kw={'width_ratios': [1, 1]}
-                            # )
-
-                            # # ─── Columna izquierda: Componentes cilíndricas ────────────────────────────────────
-                            # marker_size = 10
-                            # # Br
-                            # axes[0, 0].scatter(x_traj, Br_exp,      color='blue', label=r"$B_r^{exp}$", s=marker_size)
-                            # axes[0, 0].plot(   x_traj, Br_vector,   color='cyan', linestyle='--', label=r"$B_r^{fit}$")
-                            # axes[0, 0].set_title("Radial Component $B_r$")
-                            # axes[0, 0].set_xlabel("a")
-                            # axes[0, 0].set_ylabel(r"$B_r$ (nT)")
-                            # axes[0, 0].legend()
-                            # axes[0, 0].grid(True)
-                            # # By
-                            # axes[1, 0].scatter(x_traj, By_exp_cyl,      color='green', label=r"$B_y^{exp}$", s=marker_size)
-                            # axes[1, 0].plot(   x_traj, By_vector,   color='lime',  linestyle='--', label=r"$B_y^{fit}$")
-                            # axes[1, 0].set_title("Axial Component $B_y$")
-                            # axes[1, 0].set_xlabel("a")
-                            # axes[1, 0].set_ylabel(r"$B_y$ (nT)")
-                            # axes[1, 0].legend()
-                            # axes[1, 0].grid(True)
-                            # # Bphi
-                            # axes[2, 0].scatter(x_traj, Bphi_exp,      color='red',    label=r"$B_\phi^{exp}$", s=marker_size)
-                            # axes[2, 0].plot(   x_traj, Bphi_vector,   color='orange', linestyle='--', label=r"$B_\phi^{fit}$")
-                            # axes[2, 0].set_title("Azimuthal Component $B_\phi$")
-                            # axes[2, 0].set_xlabel("a")
-                            # axes[2, 0].set_ylabel(r"$B_\phi$ (nT)")
-                            # axes[2, 0].legend()
-                            # axes[2, 0].grid(True)
-                            # # Eliminamos el cuarto eje vacío
-                            # axes[3, 0].axis('off')
-
-                            # # ─── Columna derecha: Datos originales vs. ajustados ───────────────────────────────
-                            # B_vector = B_vector[::-1]
-                            # Bx_GSE   = Bx_GSE[::-1]
-                            # By_GSE   = By_GSE[::-1]
-                            # Bz_GSE   = Bz_GSE[::-1]
-                            # adjusted_data = [B_vector, Bx_GSE, By_GSE, Bz_GSE]
-                            # components    = ['B', 'Bx', 'By', 'Bz']
-                            # data_compare  = [B_data, Bx_data, By_data, Bz_data]
-                            # titles_compare = [
-                            #     "Magnetic Field Intensity (B)",
-                            #     "Magnetic Field Component Bx",
-                            #     "Magnetic Field Component By",
-                            #     "Magnetic Field Component Bz",
-                            # ]
-                            # start_segment = ddoy_data[initial_point - 1]
-                            # end_segment   = ddoy_data[final_point - 2]
-
-                            # for idx, (comp, orig, adj, title) in enumerate(zip(components, data_compare, adjusted_data, titles_compare)):
-                            #     ax = axes[idx, 1]
-                            #     ax.scatter(ddoy_data, orig, color='black', s=10, label=f'{comp} Original')
-                            #     ax.plot(
-                            #         ddoy_data[initial_point - 1: final_point - 1],
-                            #         adj,
-                            #         color='red', linestyle='--', linewidth=2, label=f'{comp} Fitted'
-                            #     )
-                            #     ax.axvline(x=start_segment, color='gray', linestyle='--', label='Start of Segment')
-                            #     ax.axvline(x=end_segment,   color='gray', linestyle='--', label='End of Segment')
-                            #     ax.set_title(title, fontsize=14, fontweight='bold')
-                            #     ax.set_ylabel(f"{comp} (nT)", fontsize=12)
-                            #     if idx == 3:
-                            #         ax.set_xlabel("Day of the Year (ddoy)", fontsize=12)
-                            #     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-                            #     ax.minorticks_on()
-                            #     ax.legend(fontsize=10)
-
-                            # # ─── Anotaciones de parámetros ────────────────────────────────────────────────────
-                            # fig.text(
-                            #     0.02, 0.03,            # posición, ligeramente movida para no recortar
-                            #     param_text,
-                            #     fontsize=28,           # tamaño de fuente duplicado
-                            #     bbox=dict(
-                            #         facecolor='white',
-                            #         alpha=0.8,
-                            #         boxstyle='square,pad=0.8'  # mismo boxstyle y padding que tenías
-                            #     ),
-                            #     verticalalignment='bottom',
-                            #     horizontalalignment='left'
-                            # )
-
-                            # # ─── Ajuste de márgenes para maximizar espacio de ejes ─────────────────────────────
-                            # plt.subplots_adjust(
-                            #     left=0.03,    # margen izquierdo muy pequeño
-                            #     right=0.97,   # margen derecho muy pequeño
-                            #     top=0.97,     # margen superior pequeño
-                            #     bottom=0.15,  # deja espacio para el texto abajo
-                            #     wspace=0.35,  # reduce el espacio horizontal entre columnas
-                            #     hspace=0.25   # reduce el espacio vertical entre filas
-                            # )
-
-                            # # Guardar y cerrar
-                            # plot_combined_filename = os.path.join(
-                            #     output_dir,
-                            #     f"plot_combined_iter_{iteration_counter:04d}_z0_{z0:.2f}_delta_{delta:.2f}"
-                            #     f"_ax_{angle_x:.2f}_ay_{angle_y:.2f}_az_{angle_z:.2f}.png"
-                            # )
-                            # plt.savefig(plot_combined_filename, dpi=300, bbox_inches='tight')
-                            # plt.close(fig)
+                                # Guardar y cerrar
+                                plot_combined_filename = os.path.join(
+                                    output_dir,
+                                    f"plot_combined_iter_{iteration_counter:04d}_z0_{z0:.2f}_delta_{delta:.2f}"
+                                    f"_ax_{angle_x:.2f}_ay_{angle_y:.2f}_az_{angle_z:.2f}.png"
+                                )
+                                plt.savefig(plot_combined_filename, dpi=300, bbox_inches='tight')
+                                plt.close(fig)
 
 
 
 
-                            # OTHER CALCULATIONS: 
-                            # Format parameters with 4 significant figures in scientific notation
-                            A_By_rounded = f"{A_By:.4e}"
-                            B_By_rounded = f"{B_By:.4e}"
-                            C_Bphi_rounded = f"{C_Bphi:.4e}"
+                                # OTHER CALCULATIONS: 
+                                # Format parameters with 4 significant figures in scientific notation
+                                A_By_rounded = f"{A_By:.4e}"
+                                B_By_rounded = f"{B_By:.4e}"
+                                C_Bphi_rounded = f"{C_Bphi:.4e}"
 
-                            # 0) Define symbolic expressions with formatted parameters
-                            r, alpha = sp.symbols('r alpha')
-                            Br_expr = model_Br((r, alpha), float(a_Br))  # Será cero
-                            By_expr = sp.sympify(A_By_rounded) + sp.sympify(B_By_rounded) * r**2
-                            Bphi_expr = sp.sympify(C_Bphi_rounded) * r
+                                # 0) Define symbolic expressions with formatted parameters
+                                r, alpha = sp.symbols('r alpha')
+                                Br_expr = model_Br((r, alpha), float(a_Br))  # Será cero
+                                By_expr = sp.sympify(A_By_rounded) + sp.sympify(B_By_rounded) * r**2
+                                Bphi_expr = sp.sympify(C_Bphi_rounded) * r
 
-                            params_Br_fit = a_Br
-                            params_By_fit = A_By, B_By
-                            params_Bphi_fit = C_Bphi
+                                params_Br_fit = a_Br
+                                params_By_fit = A_By, B_By
+                                params_Bphi_fit = C_Bphi
 
-                            # SAVING VARIABLES: 
-                            best_combination = (z0, angle_x, angle_y, angle_z, delta)
-                            quality_factors = (R2_B, R2_Bx, R2_By, R2_Bz, R2_avg)
+                                # SAVING VARIABLES: 
+                                best_combination = (z0, angle_x, angle_y, angle_z, delta)
+                                quality_factors = (R2_B, R2_Bx, R2_By, R2_Bz, R2_avg)
 
-                            # Plot 1: Oriented Flux Rope and intersection with plane y = 0
-                            plot1_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, percentage_in_upper_half, z_cut_scaled, xs, ys, zs)
+                                # Plot 1: Oriented Flux Rope and intersection with plane y = 0
+                                plot1_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, percentage_in_upper_half, z_cut_scaled, xs, ys, zs)
 
-                            # Plot 2: 3D Representation
-                            plot2_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
-                        
-                            # Plot 3: Cross section and trajectory inside
-                            plot3_vars = (x_ellipse_local, y_ellipse_local, x_local, y_local, x_inter_local, y_inter_local, h_line_local, v_line_local, a_local, b_local, x_ellipse_rotated, y_ellipse_rotated, x_traj_rotated, y_traj_rotated, x_inter_rotated, y_inter_rotated, h_line_rotated, v_line_rotated, chord_angle_right)
-
-                            # Plot 4: Radial and angular values of the trajectory parametrization
-                            plot4_vars = (x_local, r_vals, phi_vals)
-
-                            # Plot 5: In-situ data in Local Cartesian coordinates vs original GSE exp
-                            plot5_vars = (x_traj_GSE, B_GSE_exp_tot, Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp, x_traj, Bx_Local_exp, By_Local_exp, Bz_Local_exp, B_Local_total_exp) 
-
-                            # Plot 6: In-situ Cylindrical Components and fitted model
-                            plot6_vars = (x_traj, B_total_exp_cyl, Br_exp, By_exp_cyl, Bphi_exp, B_vector, Br_vector, By_vector, Bphi_vector) 
-
-                            # Plot 7: Fitted Local and GSE components
-                            plot7_vars = (x_traj, B_vector, Bx_traj, By_traj_cartesian, Bz_traj, x_traj_GSE, B_total_GSE, Bx_GSE, By_GSE, Bz_GSE)
-
-
-                            viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled,
-                                            scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, 
-                                            X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
+                                # Plot 2: 3D Representation
+                                plot2_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
                             
-                            a_section, b_section = a_local, b_local
+                                # Plot 3: Cross section and trajectory inside
+                                plot3_vars = (x_ellipse_local, y_ellipse_local, x_local, y_local, x_inter_local, y_inter_local, h_line_local, v_line_local, a_local, b_local, x_ellipse_rotated, y_ellipse_rotated, x_traj_rotated, y_traj_rotated, x_inter_rotated, y_inter_rotated, h_line_rotated, v_line_rotated, chord_angle_right)
 
-                            # Plot 1 auxiliar variables:
-                            plot1_extra_vars = x_at_Z_max, x_at_Z_min, x_limits, z_limits
+                                # Plot 4: Radial and angular values of the trajectory parametrization
+                                plot4_vars = (x_local, r_vals, phi_vals)
+
+                                # Plot 5: In-situ data in Local Cartesian coordinates vs original GSE exp
+                                plot5_vars = (x_traj_GSE, B_GSE_exp_tot, Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp, x_traj, Bx_Local_exp, By_Local_exp, Bz_Local_exp, B_Local_total_exp) 
+
+                                # Plot 6: In-situ Cylindrical Components and fitted model
+                                plot6_vars = (x_traj, B_total_exp_cyl, Br_exp, By_exp_cyl, Bphi_exp, B_vector, Br_vector, By_vector, Bphi_vector) 
+
+                                # Plot 7: Fitted Local and GSE components
+                                plot7_vars = (x_traj, B_vector, Bx_traj, By_traj_cartesian, Bz_traj, x_traj_GSE, B_total_GSE, Bx_GSE, By_GSE, Bz_GSE)
+
+
+                                viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled,
+                                                scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, 
+                                                X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
+                                
+                                a_section, b_section = a_local, b_local
+
+                                # Plot 1 auxiliar variables:
+                                plot1_extra_vars = x_at_Z_max, x_at_Z_min, x_limits, z_limits
 
 
     progress_bar.progress(100)
@@ -1339,6 +1348,16 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
         # ----------------------------------------------------------------------------------
 
         st.subheader("4) Radial and angular values of the trajectory parametrization")
+
+        # cálculo original
+        r_vals, phi_vals = elliptical_coords(x_local, y_local, xc, zc, a_local, b_local, theta)
+
+        # unwrap para eliminar saltos de 2π
+        phi_vals = np.unwrap(phi_vals)
+
+        # a continuación lo conviertes a grados
+        phi_vals_deg = np.degrees(phi_vals)
+
 
         # Create a figure with two subplots side by side
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))

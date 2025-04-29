@@ -4,7 +4,7 @@ from B_plotting import plot_data
 from C_pdf_generator import generate_pdf_report
 from E_M1_Radial import fit_M1_radial
 from E_M2_AngularRadial import fit_M2_AngularRadial
-from E_M3_CC_Radial import fit_M3_CC_radial
+from E_M3_ExponAngular import fit_M3_ExponAngular
 from E_Comparison import models_Comparison
 
 
@@ -36,7 +36,8 @@ if data is not None:
     fitting_model = st.radio("Choose the fitting model:", (
         "Model 1: EC - Only radial dependency",
         "Model 2: EC - Radial and Angular",
-        "Model 3: CC - Radial Circular Cylindrical (simpler than M1)",
+        "Model 3: EC - Exponential and Angular",
+        "Comparison of all models"
     ))
 
     # Generate the list of n**5 values
@@ -79,11 +80,11 @@ if data is not None:
                 st.write("Executing Fitting using Model 2...")
                 best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic,  N_iter, n_frames)
 
-            elif fitting_model == "Model 3: CC - Radial Circular Cylindrical (simpler than M1)":
+            elif fitting_model == "Model 3: EC - Exponential and Angular":
                 st.write("Executing Fitting using Model 3...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M3_CC_radial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic,  N_iter, n_frames)
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M3_ExponAngular(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
 
-            # elif fitting_model == "Comparison of all models":
-            #     st.write("Executing Comparison of all models...")
-            #     best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = models_Comparison(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
+            elif fitting_model == "Comparison of all models":
+                st.write("Executing Comparison of all models...")
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = models_Comparison(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
     
