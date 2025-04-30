@@ -169,9 +169,9 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
 
     # Create a directory to store plots
-    output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
 
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
@@ -1955,18 +1955,18 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
 
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # ----------------------------------------------------------------------------------
-        # PART B) CME Propagation
-        # ----------------------------------------------------------------------------------
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # # ----------------------------------------------------------------------------------
+        # # PART B) CME Propagation
+        # # ----------------------------------------------------------------------------------
+        # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-        st.header("CME Propagation")
+        # st.header("CME Propagation")
 
-        # ----------------------------------------------------------------------------------
-        # Plot 11) Propagation along the Interplanetary Medium
-        # ----------------------------------------------------------------------------------
-        st.subheader("11) CME Propagation Video")
+        # # ----------------------------------------------------------------------------------
+        # # Plot 11) Propagation along the Interplanetary Medium
+        # # ----------------------------------------------------------------------------------
+        # st.subheader("11) CME Propagation Video")
 
         # 11.A) Physical Parameters from the Fitting
         # ----------------------------------------------------------------------------------
@@ -2195,180 +2195,180 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
         theta_sec = np.linspace(0, 2 * np.pi, 300)
 
-        # 11.F) Animation Setup
-        # ----------------------------------------------------------------------------------
-        fig = plt.figure(figsize=(15, 5))
-        ax = fig.add_subplot(111, projection='3d')
+        # # 11.F) Animation Setup
+        # # ----------------------------------------------------------------------------------
+        # fig = plt.figure(figsize=(15, 5))
+        # ax = fig.add_subplot(111, projection='3d')
 
-        # Use the total travel time from r_start to r2 (1 AU)
-        total_travel_time = travel_time_start_r0 + travel_time_r0_r1 + travel_time_r1_r2
-        time_per_frame = total_travel_time / num_frames  # Corrected line
-        times = np.linspace(0, total_travel_time, num_frames)
+        # # Use the total travel time from r_start to r2 (1 AU)
+        # total_travel_time = travel_time_start_r0 + travel_time_r0_r1 + travel_time_r1_r2
+        # time_per_frame = total_travel_time / num_frames  # Corrected line
+        # times = np.linspace(0, total_travel_time, num_frames)
 
-        # Compute positions over the full trajectory
-        r_positions = np.zeros(num_frames)
-        r_positions[0] = r_start / 1000  # Start at 1.8 R_s in km
-        for i in range(1, num_frames):
-            mask_segment = (r_full_km >= r_positions[i-1]) & (r_full_km <= x_end)
-            r_seg = r_full_km[mask_segment]
-            v_seg = v_full_kms[mask_segment]
-            idx_sort = np.argsort(r_seg)
-            r_seg = r_seg[idx_sort]
-            v_seg = v_seg[idx_sort]
-            time_remaining = time_per_frame
-            r_current = r_positions[i-1]
-            j = np.searchsorted(r_seg, r_current)
-            while time_remaining > 0 and j < len(r_seg) - 1:
-                dr = r_seg[j+1] - r_seg[j]
-                v_avg = (v_seg[j] + v_seg[j+1]) / 2
-                dt = dr / v_avg
-                if dt <= time_remaining:
-                    r_current = r_seg[j+1]
-                    time_remaining -= dt
-                    j += 1
-                else:
-                    fraction = time_remaining / dt
-                    r_current += fraction * dr
-                    time_remaining = 0
-            r_positions[i] = r_current
+        # # Compute positions over the full trajectory
+        # r_positions = np.zeros(num_frames)
+        # r_positions[0] = r_start / 1000  # Start at 1.8 R_s in km
+        # for i in range(1, num_frames):
+        #     mask_segment = (r_full_km >= r_positions[i-1]) & (r_full_km <= x_end)
+        #     r_seg = r_full_km[mask_segment]
+        #     v_seg = v_full_kms[mask_segment]
+        #     idx_sort = np.argsort(r_seg)
+        #     r_seg = r_seg[idx_sort]
+        #     v_seg = v_seg[idx_sort]
+        #     time_remaining = time_per_frame
+        #     r_current = r_positions[i-1]
+        #     j = np.searchsorted(r_seg, r_current)
+        #     while time_remaining > 0 and j < len(r_seg) - 1:
+        #         dr = r_seg[j+1] - r_seg[j]
+        #         v_avg = (v_seg[j] + v_seg[j+1]) / 2
+        #         dt = dr / v_avg
+        #         if dt <= time_remaining:
+        #             r_current = r_seg[j+1]
+        #             time_remaining -= dt
+        #             j += 1
+        #         else:
+        #             fraction = time_remaining / dt
+        #             r_current += fraction * dr
+        #             time_remaining = 0
+        #     r_positions[i] = r_current
 
-        # 11.G) Animation Computation with Progress Bar
-        # ----------------------------------------------------------------------------------
-        st.write("Generating animation for the CME...")
-        progress_bar = st.progress(0)
-        progress_text = st.empty()
+        # # 11.G) Animation Computation with Progress Bar
+        # # ----------------------------------------------------------------------------------
+        # st.write("Generating animation for the CME...")
+        # progress_bar = st.progress(0)
+        # progress_text = st.empty()
 
-        time_per_frame_est = 0.1  # seconds per frame
-        total_time_est = num_frames * time_per_frame_est
-        start_time = datetime.now()
+        # time_per_frame_est = 0.1  # seconds per frame
+        # total_time_est = num_frames * time_per_frame_est
+        # start_time = datetime.now()
 
-        def update(frame):
-            progress = (frame + 1) / num_frames
-            progress_bar.progress(progress)
+        # def update(frame):
+        #     progress = (frame + 1) / num_frames
+        #     progress_bar.progress(progress)
             
-            elapsed_time = (datetime.now() - start_time).total_seconds()
-            if frame > 0:
-                time_per_frame_est_actual = elapsed_time / frame
-                remaining_time = time_per_frame_est_actual * (num_frames - frame - 1)
-            else:
-                remaining_time = total_time_est
+        #     elapsed_time = (datetime.now() - start_time).total_seconds()
+        #     if frame > 0:
+        #         time_per_frame_est_actual = elapsed_time / frame
+        #         remaining_time = time_per_frame_est_actual * (num_frames - frame - 1)
+        #     else:
+        #         remaining_time = total_time_est
             
-            progress_text.text(f"Progress: {int(progress * 100)}% - Estimated remaining time: {remaining_time:.1f} seconds")
+        #     progress_text.text(f"Progress: {int(progress * 100)}% - Estimated remaining time: {remaining_time:.1f} seconds")
 
-            ax.clear()
-            r = r_positions[frame]
-            scale = 1.0 if r == r_start / 1000 else (r / (r_start / 1000)) ** expansion_ratio
-            R_current = R_0 * scale
-            a_max_current = a_max_0 * scale
-            b_max_current = b_max_0 * scale
-            a_current = a_max_current * taper
-            b_current = b_max_current * taper
+        #     ax.clear()
+        #     r = r_positions[frame]
+        #     scale = 1.0 if r == r_start / 1000 else (r / (r_start / 1000)) ** expansion_ratio
+        #     R_current = R_0 * scale
+        #     a_max_current = a_max_0 * scale
+        #     b_max_current = b_max_0 * scale
+        #     a_current = a_max_current * taper
+        #     b_current = b_max_current * taper
             
-            x = (R_current + a_current * np.cos(theta)) * np.cos(phi) + r
-            y = (R_current + a_current * np.cos(theta)) * np.sin(phi)
-            z = b_current * np.sin(theta)
+        #     x = (R_current + a_current * np.cos(theta)) * np.cos(phi) + r
+        #     y = (R_current + a_current * np.cos(theta)) * np.sin(phi)
+        #     z = b_current * np.sin(theta)
             
-            x_rot = x
-            y_rot = y * np.cos(theta_x) - z * np.sin(theta_x)
-            z_rot = y * np.sin(theta_x) + z * np.cos(theta_x)
+        #     x_rot = x
+        #     y_rot = y * np.cos(theta_x) - z * np.sin(theta_x)
+        #     z_rot = y * np.sin(theta_x) + z * np.cos(theta_x)
             
-            taper0 = np.cos(phi0)
-            a0 = a_max_current * taper0
-            b0 = b_max_current * taper0
-            x_sec = (R_current + a0 * np.cos(theta_sec)) * np.cos(phi0) + r
-            y_sec = (R_current + a0 * np.cos(theta_sec)) * np.sin(phi0)
-            z_sec = b0 * np.sin(theta_sec)
-            x_sec_rot = x_sec
-            y_sec_rot = y_sec * np.cos(theta_x) - z_sec * np.sin(theta_x)
-            z_sec_rot = y_sec * np.sin(theta_x) + z_sec * np.cos(theta_x)
+        #     taper0 = np.cos(phi0)
+        #     a0 = a_max_current * taper0
+        #     b0 = b_max_current * taper0
+        #     x_sec = (R_current + a0 * np.cos(theta_sec)) * np.cos(phi0) + r
+        #     y_sec = (R_current + a0 * np.cos(theta_sec)) * np.sin(phi0)
+        #     z_sec = b0 * np.sin(theta_sec)
+        #     x_sec_rot = x_sec
+        #     y_sec_rot = y_sec * np.cos(theta_x) - z_sec * np.sin(theta_x)
+        #     z_sec_rot = y_sec * np.sin(theta_x) + z_sec * np.cos(theta_x)
             
-            y_center = np.mean(y_sec_rot)
-            z_center = np.mean(z_sec_rot)
-            y_rot_trans = y_rot - y_center
-            z_rot_trans = z_rot - z_center
-            y_sec_rot_trans = y_sec_rot - y_center
-            z_sec_rot_trans = z_sec_rot - z_center
+        #     y_center = np.mean(y_sec_rot)
+        #     z_center = np.mean(z_sec_rot)
+        #     y_rot_trans = y_rot - y_center
+        #     z_rot_trans = z_rot - z_center
+        #     y_sec_rot_trans = y_sec_rot - y_center
+        #     z_sec_rot_trans = z_sec_rot - z_center
             
-            x_line = np.linspace(0, range_au, 50)
-            y_line = np.zeros_like(x_line)
-            z_line = np.zeros_like(x_line)
+        #     x_line = np.linspace(0, range_au, 50)
+        #     y_line = np.zeros_like(x_line)
+        #     z_line = np.zeros_like(x_line)
             
-            y_proj = y_rot_trans.ravel()
-            z_proj = z_rot_trans.ravel()
-            alpha_angles = np.linspace(0, 2*np.pi, 180)
-            y_contour = []
-            z_contour = []
-            for alpha_val in alpha_angles:
-                dy = np.cos(alpha_val)
-                dz = np.sin(alpha_val)
-                dot_product = y_proj * dy + z_proj * dz
-                idx_max = np.argmax(dot_product)
-                y_contour.append(y_proj[idx_max])
-                z_contour.append(z_proj[idx_max])
-            y_contour = np.array(y_contour)
-            z_contour = np.array(z_contour)
-            ellipse_model = EllipseModel()
-            if ellipse_model.estimate(np.vstack((y_contour, z_contour)).T):
-                yc, zc, a_fit, b_fit, theta_fit = ellipse_model.params
-                cme_size = 2 * a_fit
-            else:
-                cme_size = np.nan
+        #     y_proj = y_rot_trans.ravel()
+        #     z_proj = z_rot_trans.ravel()
+        #     alpha_angles = np.linspace(0, 2*np.pi, 180)
+        #     y_contour = []
+        #     z_contour = []
+        #     for alpha_val in alpha_angles:
+        #         dy = np.cos(alpha_val)
+        #         dz = np.sin(alpha_val)
+        #         dot_product = y_proj * dy + z_proj * dz
+        #         idx_max = np.argmax(dot_product)
+        #         y_contour.append(y_proj[idx_max])
+        #         z_contour.append(z_proj[idx_max])
+        #     y_contour = np.array(y_contour)
+        #     z_contour = np.array(z_contour)
+        #     ellipse_model = EllipseModel()
+        #     if ellipse_model.estimate(np.vstack((y_contour, z_contour)).T):
+        #         yc, zc, a_fit, b_fit, theta_fit = ellipse_model.params
+        #         cme_size = 2 * a_fit
+        #     else:
+        #         cme_size = np.nan
 
-            ax.plot_surface(x_rot, y_rot_trans, z_rot_trans, rstride=2, cstride=2, 
-                            alpha=0.6, antialiased=True)
-            ax.plot(
-                x_sec_rot, y_sec_rot_trans, z_sec_rot_trans,
-                color='red', linewidth=2,
-                label=r'Section ($\phi_0$=' + f'{phi0_deg:.1f}°)')
-            ax.plot(
-                x_line, y_line, z_line,
-                color='gray', linestyle='--', linewidth=1, alpha=0.5,
-                label='X Axis')
-            ax.plot_surface(x_sun, y_sun, z_sun, color='orange', alpha=0.8)
-            ax.plot(
-                x_earth, y_earth, z_earth,
-                color='blue', linewidth=1,
-                label='Earth Orbit')
-            ax.plot(
-                x_mercury, y_mercury, z_mercury,
-                color='black', linewidth=0.5, alpha=0.5,
-                label='Mercury Orbit')
-            ax.plot(
-                x_venus, y_venus, z_venus,
-                color='black', linewidth=0.5, alpha=0.5,
-                label='Venus Orbit')
-            ax.plot(
-                x_mars, y_mars, z_mars,
-                color='red', linewidth=0.5, alpha=0.5,
-                label='Mars Orbit')
-            ax.scatter(
-                satellite_position[0], satellite_position[1], satellite_position[2],
-                color='black', s=20,
-                label='Satellite')
+        #     ax.plot_surface(x_rot, y_rot_trans, z_rot_trans, rstride=2, cstride=2, 
+        #                     alpha=0.6, antialiased=True)
+        #     ax.plot(
+        #         x_sec_rot, y_sec_rot_trans, z_sec_rot_trans,
+        #         color='red', linewidth=2,
+        #         label=r'Section ($\phi_0$=' + f'{phi0_deg:.1f}°)')
+        #     ax.plot(
+        #         x_line, y_line, z_line,
+        #         color='gray', linestyle='--', linewidth=1, alpha=0.5,
+        #         label='X Axis')
+        #     ax.plot_surface(x_sun, y_sun, z_sun, color='orange', alpha=0.8)
+        #     ax.plot(
+        #         x_earth, y_earth, z_earth,
+        #         color='blue', linewidth=1,
+        #         label='Earth Orbit')
+        #     ax.plot(
+        #         x_mercury, y_mercury, z_mercury,
+        #         color='black', linewidth=0.5, alpha=0.5,
+        #         label='Mercury Orbit')
+        #     ax.plot(
+        #         x_venus, y_venus, z_venus,
+        #         color='black', linewidth=0.5, alpha=0.5,
+        #         label='Venus Orbit')
+        #     ax.plot(
+        #         x_mars, y_mars, z_mars,
+        #         color='red', linewidth=0.5, alpha=0.5,
+        #         label='Mars Orbit')
+        #     ax.scatter(
+        #         satellite_position[0], satellite_position[1], satellite_position[2],
+        #         color='black', s=20,
+        #         label='Satellite')
 
-            ax.set_xlabel('X (km)')
-            ax.set_ylabel('Y (km)')
-            ax.set_zlabel('Z (km)')
-            ax.set_title(f'CME Expanding (X = {r/149597870.7:.2f} AU, Size = {cme_size/149597870.7:.2f} AU)')
-            ax.set_xlim(x_limits)
-            ax.set_ylim(y_limits)
-            ax.set_zlim(z_limits)
-            ax.legend()
-            return
+        #     ax.set_xlabel('X (km)')
+        #     ax.set_ylabel('Y (km)')
+        #     ax.set_zlabel('Z (km)')
+        #     ax.set_title(f'CME Expanding (X = {r/149597870.7:.2f} AU, Size = {cme_size/149597870.7:.2f} AU)')
+        #     ax.set_xlim(x_limits)
+        #     ax.set_ylim(y_limits)
+        #     ax.set_zlim(z_limits)
+        #     ax.legend()
+        #     return
 
-        # 11.H) Animation Execution with Progress Bar
-        # ----------------------------------------------------------------------------------
-        with st.spinner("Generating animation..."):
-            print("Generating CME simulation animation...")
-            ani = animation.FuncAnimation(fig, update, frames=tqdm(range(num_frames), desc="Animation Progress"), 
-                                        interval=1000//fps, blit=False)
-            html_video = ani.to_html5_video()
-            html_video = f'''
-            <div style="display:flex; justify-content:center;">
-            {html_video.replace('<video ', '<video style="max-width:100%; margin:auto; display:block;" ')}
-            </div>
-            '''
-        st.components.v1.html(html_video, height=600)
+        # # 11.H) Animation Execution with Progress Bar
+        # # ----------------------------------------------------------------------------------
+        # with st.spinner("Generating animation..."):
+        #     print("Generating CME simulation animation...")
+        #     ani = animation.FuncAnimation(fig, update, frames=tqdm(range(num_frames), desc="Animation Progress"), 
+        #                                 interval=1000//fps, blit=False)
+        #     html_video = ani.to_html5_video()
+        #     html_video = f'''
+        #     <div style="display:flex; justify-content:center;">
+        #     {html_video.replace('<video ', '<video style="max-width:100%; margin:auto; display:block;" ')}
+        #     </div>
+        #     '''
+        # st.components.v1.html(html_video, height=600)
 
 
 

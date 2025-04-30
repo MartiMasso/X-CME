@@ -1,7 +1,7 @@
 import streamlit as st
 from A_data import load_data, doy_2_datetime, display_data_info, display_file_details, identify_coordinate_system, handle_file_upload, resample_data
 from B_plotting import plot_data
-from C_pdf_generator import generate_pdf_report
+# from C_pdf_generator import generate_pdf_report
 from E_M1_Radial import fit_M1_radial
 from E_M2_AngularRadial import fit_M2_AngularRadial
 from E_M3_ExponAngular import fit_M3_ExponAngular
@@ -26,10 +26,10 @@ if data is not None:
 
     # Plot the data
     initial_date, final_date, filtered_data, total_days, hours, minutes, start_index, end_index = plot_data(data, file_year)
-
+    
     # Generate PDF report
-    if st.sidebar.button("Generate PDF Report"):
-        generate_pdf_report(data, file_name, file_date, file_duration, full_name, initial_date, final_date, filtered_data, coordinate_system)
+    # if st.sidebar.button("Generate PDF Report"):
+    #     generate_pdf_report(data, file_name, file_date, file_duration, full_name, initial_date, final_date, filtered_data, coordinate_system)
 
     # Model Selection for Fitting
     st.subheader("Select Fitting Model")
