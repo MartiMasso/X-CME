@@ -169,9 +169,9 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
 
     # Create a directory to store plots
-    output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
 
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
@@ -1955,18 +1955,18 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
 
 
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        # ----------------------------------------------------------------------------------
-        # PART B) CME Propagation
-        # ----------------------------------------------------------------------------------
-        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # # ----------------------------------------------------------------------------------
+        # # PART B) CME Propagation
+        # # ----------------------------------------------------------------------------------
+        # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-        st.header("CME Propagation")
+        # st.header("CME Propagation")
 
-        # ----------------------------------------------------------------------------------
-        # Plot 11) Propagation along the Interplanetary Medium
-        # ----------------------------------------------------------------------------------
-        st.subheader("11) CME Propagation Video")
+        # # ----------------------------------------------------------------------------------
+        # # Plot 11) Propagation along the Interplanetary Medium
+        # # ----------------------------------------------------------------------------------
+        # st.subheader("11) CME Propagation Video")
 
         # 11.A) Physical Parameters from the Fitting
         # ----------------------------------------------------------------------------------

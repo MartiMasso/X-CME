@@ -174,9 +174,9 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     delta_range = np.linspace(0.6, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
 
     # Create a directory to store plots
-    output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
 
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0

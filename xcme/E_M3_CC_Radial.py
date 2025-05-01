@@ -150,9 +150,9 @@ def fit_M3_CC_radial(data, initial_point, final_point, initial_date, final_date,
 
 
     # Create a directory to store plots
-    output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
 
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
