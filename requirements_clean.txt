@@ -7,5 +7,6 @@ sunpy
 plotly
 scikit-image
 sympy
+imageio_ffmpeg
 
 

@@ -1,3 +1,5 @@
+## FYI: This is not being used anywhere -- A.A.N.
+
 # -------------------- Parche global contra LaTeX en matplotlib --------------------
 import matplotlib
 

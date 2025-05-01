@@ -1,4 +1,6 @@
 import streamlit as st
+import matplotlib as mpl
+import imageio_ffmpeg
 from A_data import load_data, doy_2_datetime, display_data_info, display_file_details, identify_coordinate_system, handle_file_upload, resample_data
 from B_plotting import plot_data
 # from C_pdf_generator import generate_pdf_report
@@ -9,6 +11,7 @@ from E_Comparison import models_Comparison
 
 
 # Main
+mpl.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
 st.title("Flux Rope Fitting")
 
 # File Upload Management
