@@ -62,7 +62,7 @@ def elliptical_coords(x, y, xc, yc, a, b, theta):
 # Function to compute the fitting (with cache)
 st.cache_data.clear()
 @st.cache_data
-def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  distance, lon_ecliptic, N_iter, n_frames):
+def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  mission, N_iter, n_frames):
     coordinate_system = identify_coordinate_system(data)
 
     data_transformed = data.copy()
@@ -135,7 +135,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
     # angle_z_range = np.array([-np.radians(0)])              # (0, 180)
     # delta_range = np.array([0.7])                           # (0, 1)
 
-    # Fixed parameters for LaTeX illustration
+    # # Fixed parameters for LaTeX illustration
     # z0_range = np.array([0.21])  # (-1, 1)
     # angle_x_range = np.array([np.radians(76)])              # (0, 180)
     # angle_y_range = np.array([np.radians(-1)])             # (0, 180)
@@ -176,9 +176,9 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 10  # Minimum angle of the FR axis wrt the x-axis. 
+    angle_min_x_deg = 20  # Minimum angle of the FR axis wrt the x-axis. 
     angle_min_x = np.deg2rad(angle_min_x_deg) 
-    angle_min_z_deg = 10  # Minimum angle of the FR axis wrt the z-axis. 
+    angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
 
     # ----------------------------------------------------------------------------------
@@ -1942,12 +1942,40 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
         # # ----------------------------------------------------------------------------------
         # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-        # st.header("CME Propagation")
+        st.header("CME Propagation")
 
-        # # ----------------------------------------------------------------------------------
-        # # Plot 11) Propagation along the Interplanetary Medium
-        # # ----------------------------------------------------------------------------------
-        # st.subheader("11) CME Propagation Video")
+        # Compute the date corresponding to ddoy_exp[0]
+        initial_doy = initial_date.timetuple().tm_yday + (initial_date.hour / 24.0) + (initial_date.minute / (24.0 * 60.0)) + (initial_date.second / (24.0 * 3600.0))
+        if ddoy_exp[0] < initial_doy and ddoy_exp[0] < 32:  # Likely in the next year
+            year = initial_date.year + 1
+        else:
+            year = initial_date.year
+
+        # Convert ddoy_exp[0] to a datetime object
+        doy = int(ddoy_exp[0])  # Integer part of the day-of-year
+        fractional_day = ddoy_exp[0] - doy  # Fractional part of the day
+        seconds_in_day = 24 * 3600  # Seconds in a day
+        fractional_seconds = fractional_day * seconds_in_day  # Convert fractional day to seconds
+
+        # Start from January 1st of the year
+        base_date = datetime(year, 1, 1)
+        # Add the days (doy - 1 because DOY starts at 1) and the fractional seconds
+        days_to_add = doy - 1  # Subtract 1 because DOY=1 is January 1st
+        event_start_date = base_date + timedelta(days=days_to_add, seconds=fractional_seconds)
+        obstime = parse_time(event_start_date)
+
+        # Calculate the satellite's position at this date using the mission parameter
+        try:
+            coord = get_horizons_coord(mission, obstime)
+            distance, lon_ecliptic = get_position_data(mission, coord, obstime)
+        except Exception as e:
+            st.warning(f"Could not obtain the satellite position for {mission} at {event_start_date}: {e}")
+            distance, lon_ecliptic = 0.0, 0.0  # Default values if the calculation fails
+
+        # ----------------------------------------------------------------------------------
+        # Plot 11) Propagation along the Interplanetary Medium
+        # ----------------------------------------------------------------------------------
+        st.subheader("11) CME Propagation Video")
 
         # 11.A) Physical Parameters from the Fitting
         # ----------------------------------------------------------------------------------
@@ -3067,6 +3095,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
         st.subheader("CME Interaction with Earth and Mars")
 
         # Parse the dates of interest
+        satellite_date = parse_time(fecha_llegada_r1)
         earth_date = parse_time(fecha_llegada_r2)
         mars_date = parse_time(fecha_llegada_r3)
 
@@ -3079,6 +3108,11 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
         mars_coord = get_body_heliographic_stonyhurst('Mars', mars_date)
         mars_distance, mars_lon = get_position_data('Mars', mars_coord, mars_date)
         mars_lon = mars_lon % 360  # Ensure longitude is in [0, 360)
+
+        # Calculate the satellite's position at fecha_llegada_r1 (initial_date)
+        satellite_coord = get_horizons_coord(mission, satellite_date)
+        satellite_distance, satellite_lon = get_position_data(mission, satellite_coord, satellite_date)
+        satellite_lon = satellite_lon % 360  # Ensure longitude is in [0, 360)
 
         # Compute the CME's center ecliptic longitude
         cme_lon = lon_ecliptic % 360  # Satellite's ecliptic longitude
@@ -3095,6 +3129,10 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  d
 
         # Display the calculated positions
         st.markdown(f"""
+        **Satellite ({mission}) Position at {satellite_date.strftime('%Y-%m-%d %H:%M:%S')}**:
+        - Radial Distance: {satellite_distance:.3f} AU
+        - Ecliptic Longitude: {satellite_lon:.2f}°
+
         **Earth's Position at {earth_date.strftime('%Y-%m-%d %H:%M:%S')}**:
         - Radial Distance: {earth_distance:.3f} AU
         - Ecliptic Longitude: {earth_lon:.2f}°
