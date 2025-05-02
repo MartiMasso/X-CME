@@ -71,7 +71,7 @@ if data is not None:
             help="Frames for the propagation of the CME in the simulation"
         )
 
-        N_iter = int(N_iter ** (1/5))  # Convert back to the base value for further calculations
+        N_iter = int(N_iter ** (1/5))  # Convert back to the base value for further calculations  
 
         # Execute Data Fitting based on Model Selection
         if st.button("Execute Fitting"):
