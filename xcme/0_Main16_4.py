@@ -12,6 +12,13 @@ from E_Comparison import models_Comparison
 
 # Main
 mpl.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
+mpl.rcParams["text.usetex"] = False                 # Use mathtext backend
+mpl.rcParams["font.family"] = "STIXGeneral"         # Use bundled STIX font
+mpl.rcParams["mathtext.fontset"] = "stix"           # Use STIX math fonts
+mpl.rcParams["axes.titlesize"] = 16                 # Set title size
+mpl.rcParams["axes.titleweight"] = "bold"           # Bold for titles      
+mpl.rcParams["axes.labelweight"] = "bold"            
+
 st.title("Flux Rope Fitting")
 
 # File Upload Management
