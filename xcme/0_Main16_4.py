@@ -41,8 +41,8 @@ if data is not None:
     # Model Selection for Fitting
     st.subheader("Select Fitting Model")
     fitting_model = st.radio("Choose the fitting model:", (
-        "Model 1: EC - Nieves-Chinchilla Radial Model",
-        "Model 2: EC - Jesus Navas' Radial and Poloidal Model",
+        "Model 1: EC - Nieves-Chinchilla - Radial Model",
+        "Model 2: EC - Jesus Navas - Radial and Poloidal Model",
         # "Model 3: EC - Exponential and Angular",
         # "Comparison of all models"
     ))
@@ -79,11 +79,11 @@ if data is not None:
 
         # Execute Data Fitting based on Model Selection
         if st.button("Execute Fitting"):
-            if fitting_model == "Model 1: EC - Nieves-Chinchilla's Radial Model":
+            if fitting_model == "Model 1: EC - Nieves-Chinchilla - Radial Model":
                 st.write("Executing Fitting using Model 1...")
                 best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M1_radial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic, N_iter, n_frames)
             
-            elif fitting_model == "Model 2: EC - Jesus Navas' Radial and Poloidal Model":
+            elif fitting_model == "Model 2: EC - Jesus Navas - Radial and Poloidal Model":
                 st.write("Executing Fitting using Model 2...")
                 best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic,  N_iter, n_frames)
 
