@@ -28,7 +28,7 @@ if data is not None:
     data = resample_data(data)
     st.write("DataFrame shape after resampling:", data.shape)
     coordinate_system = identify_coordinate_system(data)
-    full_name, file_date, file_duration, file_year,  distance, lon_ecliptic = display_file_details(file_name, coordinate_system)
+    full_name, file_date, file_duration, file_year, mission = display_file_details(file_name, coordinate_system)
     display_data_info(data)
 
     # Plot the data
@@ -81,11 +81,11 @@ if data is not None:
         if st.button("Execute Fitting"):
             if fitting_model == "Model 1: EC - Nieves-Chinchilla - Radial Model":
                 st.write("Executing Fitting using Model 1...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M1_radial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic, N_iter, n_frames)
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M1_radial(data, start_index, end_index, initial_date, final_date, mission, N_iter, n_frames)
             
             elif fitting_model == "Model 2: EC - Jesus Navas - Radial and Poloidal Model":
                 st.write("Executing Fitting using Model 2...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic,  N_iter, n_frames)
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, mission,  N_iter, n_frames)
 
             # elif fitting_model == "Model 3: EC - Exponential and Angular":
             #     st.write("Executing Fitting using Model 3...")

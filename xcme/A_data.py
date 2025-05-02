@@ -460,14 +460,14 @@ def display_file_details(file_name, coordinate_system):
         <li><b>Day-of-Year (ddoy):</b> {ddoy}</li>
         <li><b>Sampling Interval:</b> {file_duration}</li>
         <li><b>Coordinate System:</b> {coordinate_system}</li>
-        <li><b>Satellite's Distance from the Sun (AU):</b> {np.round(distance, 3)}</li>
-        <li><b>Ecliptic Longitude (degrees):</b> {np.round(lon_ecliptic, 2)}</li>
     </ul>
     """
+        # <li><b>Satellite's Distance from the Sun (AU):</b> {np.round(distance, 3)}</li>
+        # <li><b>Ecliptic Longitude (degrees):</b> {np.round(lon_ecliptic, 2)}</li>
 
     st.markdown(details_html, unsafe_allow_html=True)
         
-    return full_name, file_date, file_duration, file_year, distance, lon_ecliptic
+    return full_name, file_date, file_duration, file_year, full_name
 
 
 def display_data_info(data, coordinate_system=None):
