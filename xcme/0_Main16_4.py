@@ -38,7 +38,7 @@ if data is not None:
     st.subheader("Select Fitting Model")
     fitting_model = st.radio("Choose the fitting model:", (
         "Model 1: EC - Nieves-Chinchilla Radial Model",
-        "Model 2: EC - Radial and Angular",
+        "Model 2: EC - Radial and Angular Model",
         # "Model 3: EC - Exponential and Angular",
         # "Comparison of all models"
     ))
