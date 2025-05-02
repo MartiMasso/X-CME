@@ -1853,7 +1853,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # Define the current density expressions (symbolic, for display)
         mu_0_sym = sp.Float(mu_0_sym)  # Permeability of free space (for symbolic use)
-        jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (B + D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
+        jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
         # For jy, consider two cases: if delta is between 0.999 and 1.001 or not
         if 0.999 <= float(delta) <= 1.001:
             jy = (1 / (delta * mu_0_sym)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
@@ -1891,7 +1891,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             """
             Radial current density component using fitted parameters (numerical evaluation)
             """
-            return (- A * r**(n_by-1) / (delta * mu_0)) * (B + C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
+            return (- A * r**(n_by-1) / (delta * mu_0)) * ( C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
 
         def jy_model_fitted(r, alpha):
             """
