@@ -12,7 +12,11 @@ from E_Comparison import models_Comparison
 
 # Main
 mpl.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
-st.title("Flux Rope Fitting")
+
+# Application title and metadata
+st.title("X-CME")
+st.subheader("Flux Rope Fitting and CME Propagation Simulation - NASA")
+st.markdown("**Author:** Martí Massó Moreno")
 
 # File Upload Management
 upload_option = st.sidebar.radio("Load options:", ("Upload a file", "Download from cloud"))
