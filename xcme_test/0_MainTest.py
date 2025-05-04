@@ -1,4 +1,4 @@
-import streamlit as st 
+import streamlit as st
 import matplotlib as mpl
 import imageio_ffmpeg
 from A_data import load_data, doy_2_datetime, display_data_info, display_file_details, identify_coordinate_system, handle_file_upload, resample_data
