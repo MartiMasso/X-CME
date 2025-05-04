@@ -3213,30 +3213,30 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # ----------------------------------------------------------------------------------
         # 18) Plot of the Interplanetary Scene
         # ----------------------------------------------------------------------------------
-        # st.subheader("Convergence Analysis")
+        st.subheader("Convergence Analysis")
 
-        # st.markdown(f"""
-        # <h3 style='font-size:16px;'>Checking Parameters</h3>
-        # <ul>
-        #     <li><b>Theta XY:</b> {theta_xy_deg:.2e}°</li>
-        #     <li><b>Phi XZ:</b> {phi_xz_deg:.2e}°</li>
-        #     <li><b>z0:</b> {z0:.2f} </li>
-        #     <li><b>theta_x:</b> {np.rad2deg(angle_x):.2f}°</li>
-        #     <li><b>theta_y:</b> {np.rad2deg(angle_y):.2f}°</li>
-        #     <li><b>theta_z:</b>  {np.rad2deg(angle_z):.2f}</li>
-        #     <li><b>delta:</b> {delta:.2f} kg</li>
-        #     <li><b>Ravg: </b> {R2_avg:.4f} </li>
-        #     <li><b>gamma1:</b> {gamma_1_deg:.2f}°</li>
-        #     <li><b>portionRight:</b> {prop_y_pos*100:.1f}%</li>
-        #     <li><b>t1-t0:</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
-        #     <li><b>t2-t0:</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
-        #     <li><b>t3-t0:</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
-        #     <li><b>inclination:</b> {theta_x_deg:.2f}°</li>
-        #     <li><b>cutSectionAngle:</b> {phi0_deg:.2f}°</li>
-        #     <li><b>gammaCME:</b>  {cme_center_lon:.2f}°</li>
-        #     <li><b>intervalEarth:</b> ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)</li>
-        # </ul>
-        # """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <h3 style='font-size:16px;'>Checking Parameters</h3>
+        <ul>
+            <li><b>Theta XY:</b> {theta_xy_deg:.2e}°</li>
+            <li><b>Phi XZ:</b> {phi_xz_deg:.2e}°</li>
+            <li><b>z0:</b> {z0:.2f} </li>
+            <li><b>theta_x:</b> {np.rad2deg(angle_x):.2f}°</li>
+            <li><b>theta_y:</b> {np.rad2deg(angle_y):.2f}°</li>
+            <li><b>theta_z:</b>  {np.rad2deg(angle_z):.2f}</li>
+            <li><b>delta:</b> {delta:.2f} kg</li>
+            <li><b>Ravg: </b> {R2_avg:.4f} </li>
+            <li><b>gamma1:</b> {gamma_1_deg:.2f}°</li>
+            <li><b>portionRight:</b> {prop_y_pos*100:.1f}%</li>
+            <li><b>t1-t0:</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
+            <li><b>t2-t0:</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
+            <li><b>t3-t0:</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
+            <li><b>inclination:</b> {theta_x_deg:.2f}°</li>
+            <li><b>cutSectionAngle:</b> {phi0_deg:.2f}°</li>
+            <li><b>gammaCME:</b>  {cme_center_lon:.2f}°</li>
+            <li><b>intervalEarth:</b> ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)</li>
+        </ul>
+        """, unsafe_allow_html=True)
 
 
     if best_combination is None:

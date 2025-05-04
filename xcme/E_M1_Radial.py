@@ -144,12 +144,21 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
 
 
 
+    # # Iteration parameters
+    # z0_range = np.linspace(-0.7, 0.7, N_iter)                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
+    # angle_x_range = np.linspace(-np.pi + 0.01, np.pi - 0.01, N_iter)                # Interval (0, π)
+    # angle_y_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
+    # angle_z_range = np.linspace(-np.pi + 0.01, np.pi - 0.01, N_iter)   # Interval (-π/2, π/2)
+    # delta_range = np.linspace(0.5, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+
+
     # Iteration parameters
     z0_range = np.linspace(-0.7, 0.7, N_iter)                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
-    angle_x_range = np.linspace(0.4, np.pi - 0.4, N_iter)                # Interval (0, π)
-    angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
-    angle_z_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
+    angle_x_range = np.linspace(0.01, np.pi - 0.01, N_iter)                # Interval (0, π)
+    angle_y_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
+    angle_z_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
     delta_range = np.linspace(0.5, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+
 
 
     total_iterations = len(z0_range) * len(angle_x_range) * len(angle_y_range) * len(angle_z_range) * len(delta_range)
@@ -176,7 +185,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 20  # Minimum angle of the FR axis wrt the x-axis. 
+    angle_min_x_deg = 20  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
     angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
@@ -207,7 +216,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
                             R_x = np.array([[1, 0, 0], [0, np.cos(angle_x), -np.sin(angle_x)], [0, np.sin(angle_x), np.cos(angle_x)]])
                             R_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)], [0, 1, 0], [-np.sin(angle_y), 0, np.cos(angle_y)]])
                             R_z = np.array([[np.cos(angle_z), -np.sin(angle_z), 0], [np.sin(angle_z), np.cos(angle_z), 0], [0, 0, 1]])
-                            rotation_matrix = R_y @ R_x @ R_z
+                            rotation_matrix = R_z @ R_y @ R_x 
                             rotation_matrix_inv = rotation_matrix.T
 
                             # 1.2 Cylinder Coordinates Centered at Origin
@@ -227,7 +236,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
                             # ----------------------------------------------------------------------------------
                             # 2. Cylinder Intersection with Plane y = 0 and Spacecraft
                             # ----------------------------------------------------------------------------------
-                            cut_indices = np.abs(Y_rot) < 0.05
+                            cut_indices = np.abs(Y_rot) < 0.075
                             X_cut = X_rot[cut_indices]
                             Z_cut = Z_rot[cut_indices]
 
@@ -244,8 +253,12 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
                             # 2.2 Fit Ellipse to Intersection
                             # ----------------------------------------------------------------------------------
                             ellipse_model = EllipseModel()
-                            ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
-                            xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params
+
+                            try:
+                                ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
+                                xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params
+                            except Exception:
+                                continue
 
                             # 2.3 Generate Ellipse Points
                             # ----------------------------------------------------------------------------------
@@ -406,8 +419,13 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
                             ellipse_model = EllipseModel()
                             ellipse_points = np.column_stack((X_proj_ellipse, Y_proj_ellipse))
                             ellipse_model.estimate(ellipse_points)
-                            xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params
-                            xc_proj, yc_proj = 0, 0  # Already centered at the origin
+                            try:
+                                ellipse_model.estimate(ellipse_points)
+                                xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params
+                            except Exception:
+                                # cualquier error en el ajuste o unpacking provoca que sigamos con la siguiente iteración
+                                continue
+                            xc_proj, yc_proj = 0, 0
 
                             # Calculate the slope of the projected trajectory
                             # ----------------------------------------------------------------------
@@ -982,7 +1000,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
 
         # Límites de la línea vertical (usamos z_limits para cubrir toda la elipse)
         z_vertical_limits = [z_limits[0], z_limits[1]]
-
+        x0, x1 = X_intersections_scaled
 
         # Create figure with two subplots: one 3D and one 2D
         fig = plt.figure(figsize=(10, 5))
@@ -998,7 +1016,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         z_plane = np.linspace(z_limits[0], z_limits[1], 10)
         X_plane, Z_plane = np.meshgrid(x_plane, z_plane)
         ax1.plot_surface(X_plane, y_plane, Z_plane, color='gray', alpha=0.2)
-        ax1.plot(x_z_zero_limits, [0, 0], [0, 0], 'k--', linewidth=1.5, label="z = 0")
+        ax1.plot([x0, x1], [0, 0], [0, 0], 'k--', linewidth=1.5, label="z = 0")
         ax1.plot([x_vertical, x_vertical], [0, 0], z_vertical_limits, 'b--', linewidth=1.5, label="Z max/min")
         ax1.set_xlabel("X")
         ax1.set_ylabel("Y")
@@ -3171,21 +3189,47 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         # Display the encounter analysis based on ecliptic longitude intervals
         st.markdown("**CME Encounter Analysis (Based on Ecliptic Longitude):**")
         if earth_within_interval:
-            st.markdown(f"- **Earth**: The CME is likely to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+            st.markdown(f"- **Earth**: The CME is **likely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
         else:
-            st.markdown(f"- **Earth**: The CME is unlikely to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is not within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+            st.markdown(f"- **Earth**: The CME is **unlikely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is not within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
         if mars_within_interval:
-            st.markdown(f"- **Mars**: The CME is likely to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
+            st.markdown(f"- **Mars**: The CME is **likely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
         else:
-            st.markdown(f"- **Mars**: The CME is unlikely to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is not within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
+            st.markdown(f"- **Mars**: The CME is **unlikely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is not within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
 
         # # Additional note on limitations
         # st.markdown("*Note*: This analysis is based solely on ecliptic longitude intervals and does not account for radial distance differences or the CME's 3D trajectory and temporal evolution.")
 
 
         # ----------------------------------------------------------------------------------
-        # 18) Plot of the Interplanetary Scene
+        # 18) Variables for the Convergence Analysis
         # ----------------------------------------------------------------------------------
+        # st.subheader("Convergence Analysis")
+
+        # st.markdown(f"**θ (angle with the XY plane)**: {theta_xy_deg:.2f}°")
+        # st.markdown(f"**φ (angle with the XZ plane)**: {phi_xz_deg:.2f}°")
+
+        # st.markdown(f"""
+        # <h3 style='font-size:16px;'>Checking Parameters</h3>
+        # <ul>
+        #     <li><b>z0:</b> {z0:.2f} </li>
+        #     <li><b>theta_x:</b> {np.rad2deg(angle_x):.2f}°</li>
+        #     <li><b>theta_y:</b> {np.rad2deg(angle_y):.2f}°</li>
+        #     <li><b>theta_z:</b>  {np.rad2deg(angle_z):.2f}</li>
+        #     <li><b>delta:</b> {delta:.2f}</li>
+        #     <li><b>Ravg: </b> {R2_avg:.4f} </li>
+        #     <li><b>gamma1:</b> {gamma_1_deg:.2f}°</li>
+        #     <li><b>portionRight:</b> {prop_y_pos*100:.1f}%</li>
+        #     <li><b>Projected Area: </b> {area_ellipse:.3f} AU² </li>
+        #     <li><b>t1-t0:</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
+        #     <li><b>t2-t0:</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
+        #     <li><b>t3-t0:</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
+        #     <li><b>inclination:</b> {theta_x_deg:.2f}°</li>
+        #     <li><b>cutSectionAngle:</b> {phi0_deg:.2f}°</li>
+        #     <li><b>gammaCME:</b>  {cme_center_lon:.2f}°</li>
+        #     <li><b>intervalEarth:</b> ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)</li>
+        # </ul>
+        # """, unsafe_allow_html=True)
 
 
     if best_combination is None:
@@ -3193,3 +3237,4 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
 
     return (best_combination, B_components_fit, trajectory_vectors,
             viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt)
+
