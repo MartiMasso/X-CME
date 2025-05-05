@@ -246,11 +246,11 @@ def handle_file_upload(upload_option):
 def resample_data(data):
     initial_points = len(data)
     # Si hay más de 1000 puntos, el step es el techo de (puntos / 1000); si no, se conserva 1
-    step = math.ceil(initial_points / 350) if initial_points > 350 else 1
+    step = math.ceil(initial_points / 250) if initial_points > 250 else 1
     if step > 1:
-        st.write(f"Applying resampling: we take 1 for each {step} points.")
+        st.write(f"Aplicando resampling: se tomará 1 de cada {step} puntos.")
         data = data.iloc[::step].reset_index(drop=True)
-        st.write(f"Number of points after resampling: {len(data)}")
+        st.write(f"Número de puntos tras resampling: {len(data)}")
     return data
 
 
@@ -405,7 +405,6 @@ def display_file_details(file_name, coordinate_system):
         "WI": "WIND",                      # WIND
         "PSP": "Parker Solar Probe",       # Parker Solar Probe
         "SO": "Solar Orbiter",             # Solar Orbiter
-        "SOLO": "Solar Orbiter",           # Solar Orbiter
         "STA": "STEREO-A"                  # STEREO-A
     }
     file_parts = os.path.basename(file_name).split('_')
@@ -461,14 +460,14 @@ def display_file_details(file_name, coordinate_system):
         <li><b>Day-of-Year (ddoy):</b> {ddoy}</li>
         <li><b>Sampling Interval:</b> {file_duration}</li>
         <li><b>Coordinate System:</b> {coordinate_system}</li>
+        <li><b>Satellite's Distance from the Sun (AU):</b> {np.round(distance, 3)}</li>
+        <li><b>Ecliptic Longitude (degrees):</b> {np.round(lon_ecliptic, 2)}</li>
     </ul>
     """
-        # <li><b>Satellite's Distance from the Sun (AU):</b> {np.round(distance, 3)}</li>
-        # <li><b>Ecliptic Longitude (degrees):</b> {np.round(lon_ecliptic, 2)}</li>
 
     st.markdown(details_html, unsafe_allow_html=True)
         
-    return full_name, file_date, file_duration, file_year, full_name
+    return full_name, file_date, file_duration, file_year, distance, lon_ecliptic
 
 
 def display_data_info(data, coordinate_system=None):
