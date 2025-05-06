@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st 
 import matplotlib as mpl
 import imageio_ffmpeg
 from A_data import load_data, doy_2_datetime, display_data_info, display_file_details, identify_coordinate_system, handle_file_upload, resample_data
@@ -12,14 +12,11 @@ from E_Comparison import models_Comparison
 
 # Main
 mpl.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
-mpl.rcParams["text.usetex"] = False                 # Use mathtext backend
-mpl.rcParams["font.family"] = "STIXGeneral"         # Use bundled STIX font
-mpl.rcParams["mathtext.fontset"] = "stix"           # Use STIX math fonts
-mpl.rcParams["axes.titlesize"] = 16                 # Set title size
-mpl.rcParams["axes.titleweight"] = "bold"           # Bold for titles      
-mpl.rcParams["axes.labelweight"] = "bold"            
 
-st.title("Flux Rope Fitting")
+# Application title and metadata
+st.title("X-CME")
+st.subheader("Flux Rope Fitting and CME Propagation Simulation - NASA")
+st.markdown("**Author:** Martí Massó Moreno")
 
 # File Upload Management
 upload_option = st.sidebar.radio("Load options:", ("Upload a file", "Download from cloud"))
@@ -31,7 +28,7 @@ if data is not None:
     data = resample_data(data)
     st.write("DataFrame shape after resampling:", data.shape)
     coordinate_system = identify_coordinate_system(data)
-    full_name, file_date, file_duration, file_year,  distance, lon_ecliptic = display_file_details(file_name, coordinate_system)
+    full_name, file_date, file_duration, file_year, mission = display_file_details(file_name, coordinate_system)
     display_data_info(data)
 
     # Plot the data
@@ -44,10 +41,10 @@ if data is not None:
     # Model Selection for Fitting
     st.subheader("Select Fitting Model")
     fitting_model = st.radio("Choose the fitting model:", (
-        "Model 1: EC - Only radial dependency",
-        "Model 2: EC - Radial and Angular",
-        "Model 3: EC - Exponential and Angular",
-        "Comparison of all models"
+        "Model 1: EC - Nieves-Chinchilla - Radial Model",
+        "Model 2: EC - Jesus Navas - Radial and Poloidal Model",
+        # "Model 3: EC - Exponential and Angular",
+        # "Comparison of all models"
     ))
 
     # Generate the list of n**5 values
@@ -78,23 +75,23 @@ if data is not None:
             help="Frames for the propagation of the CME in the simulation"
         )
 
-        N_iter = int(N_iter ** (1/5))  # Convert back to the base value for further calculations
+        N_iter = int(N_iter ** (1/5))  # Convert back to the base value for further calculations  
 
         # Execute Data Fitting based on Model Selection
         if st.button("Execute Fitting"):
-            if fitting_model == "Model 1: EC - Only radial dependency":
+            if fitting_model == "Model 1: EC - Nieves-Chinchilla - Radial Model":
                 st.write("Executing Fitting using Model 1...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M1_radial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic, N_iter, n_frames)
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M1_radial(data, start_index, end_index, initial_date, final_date, mission, N_iter, n_frames)
             
-            elif fitting_model == "Model 2: EC - Radial and Angular":
+            elif fitting_model == "Model 2: EC - Jesus Navas - Radial and Poloidal Model":
                 st.write("Executing Fitting using Model 2...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic,  N_iter, n_frames)
+                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M2_AngularRadial(data, start_index, end_index, initial_date, final_date, mission,  N_iter, n_frames)
 
-            elif fitting_model == "Model 3: EC - Exponential and Angular":
-                st.write("Executing Fitting using Model 3...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M3_ExponAngular(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
+            # elif fitting_model == "Model 3: EC - Exponential and Angular":
+            #     st.write("Executing Fitting using Model 3...")
+            #     best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = fit_M3_ExponAngular(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
 
-            elif fitting_model == "Comparison of all models":
-                st.write("Executing Comparison of all models...")
-                best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = models_Comparison(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
+            # elif fitting_model == "Comparison of all models":
+            #     st.write("Executing Comparison of all models...")
+            #     best_combination, B_components_fit, trajectory_vectors, viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt = models_Comparison(data, start_index, end_index, initial_date, final_date, distance, lon_ecliptic)
     
