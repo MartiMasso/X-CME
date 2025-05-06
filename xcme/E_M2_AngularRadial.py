@@ -64,7 +64,7 @@ def elliptical_coords(x, y, xc, yc, a, b, theta):
 # Function to compute the fitting (with cache)
 st.cache_data.clear()
 @st.cache_data
-def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_date,  distance, lon_ecliptic,  N_iter, n_frames):
+def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_date,  mission,  N_iter, n_frames):
 
     coordinate_system = identify_coordinate_system(data)
 
@@ -128,7 +128,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
     n_by = 3  # exponent of the radial component of the magnetic field component By.
     # ----------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------
     # Generate rotation ranges based on minimum angle
     # ----------------------------------------------------------------------------------
     def generate_rotation_ranges(N_iter, min_angle_deg):
@@ -158,20 +158,21 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         
         return angle_x_range, angle_y_range, angle_z_range
         
-    # Parámetros fijos para ilustrar latex
-    z0_range = np.array([0.3])  # (-1, 1)
-    angle_x_range = np.array([np.radians(70)])              # (0, 180)
-    angle_y_range = np.array([np.radians(-15)])               # (0, 180)
-    angle_z_range = np.array([-np.radians(30)])              # (0, 180)
-    delta_range = np.array([0.7])                           # (0, 1)   
+    # # Parámetros fijos para ilustrar latex
+    # z0_range = np.array([0.3])  # (-1, 1)
+    # angle_x_range = np.array([np.radians(70)])              # (0, 180)
+    # angle_y_range = np.array([np.radians(-15)])               # (0, 180)
+    # angle_z_range = np.array([-np.radians(30)])              # (0, 180)
+    # delta_range = np.array([0.7])                           # (0, 1)   
 
 
     # Iteration parameters
-    z0_range = np.linspace(-0.65, 0.65, N_iter)                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
-    angle_x_range = np.linspace(0.1, np.pi - 0.1, N_iter)                # Interval (0, π)
-    angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
-    angle_z_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
-    delta_range = np.linspace(0.6, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    z0_range = np.linspace(-0.7, 0.7, N_iter)                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
+    angle_x_range = np.linspace(0.01, np.pi - 0.01, N_iter)                # Interval (0, π)
+    angle_y_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
+    angle_z_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
+    delta_range = np.linspace(0.5, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+
 
     # Create a directory to store plots
     # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
@@ -195,15 +196,19 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     progress_bar = st.progress(0)
     progress_text = st.empty()
     current_iteration = 0
+    rho_avg_best = -10000
 
-    angle_min_x_deg = 10  # Minimum angle of the FR axis wrt the x-axis. 
+    # Counter for unique filenames (optional, can use parameters instead)
+    iteration_counter = 0
+
+    angle_min_x_deg = 20  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
-    angle_min_z_deg = 10  # Minimum angle of the FR axis wrt the z-axis. 
+    angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
 
 
     # ----------------------------------------------------------------------------------
-    # Main Loop
+    # Main Loop           
     # ----------------------------------------------------------------------------------
     for z0 in z0_range:
         for angle_x in angle_x_range:
@@ -220,15 +225,15 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                             # 1. Geometry configuration
                             # ----------------------------------------------------------------------------------
                             N = 100
-                            a = 1               # [Not real scale]
-                            b = delta * a       # [Not real scale]
+                            a = 1
+                            b = delta * a
 
                             # 1.1 Rotation Matrices
                             # ----------------------------------------------------------------------------------
                             R_x = np.array([[1, 0, 0], [0, np.cos(angle_x), -np.sin(angle_x)], [0, np.sin(angle_x), np.cos(angle_x)]])
                             R_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)], [0, 1, 0], [-np.sin(angle_y), 0, np.cos(angle_y)]])
                             R_z = np.array([[np.cos(angle_z), -np.sin(angle_z), 0], [np.sin(angle_z), np.cos(angle_z), 0], [0, 0, 1]])
-                            rotation_matrix = R_y @ R_x @ R_z
+                            rotation_matrix = R_z @ R_y @ R_x 
                             rotation_matrix_inv = rotation_matrix.T
 
                             # 1.2 Cylinder Coordinates Centered at Origin
@@ -248,7 +253,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                             # ----------------------------------------------------------------------------------
                             # 2. Cylinder Intersection with Plane y = 0 and Spacecraft
                             # ----------------------------------------------------------------------------------
-                            cut_indices = np.abs(Y_rot) < 0.05
+                            cut_indices = np.abs(Y_rot) < 0.075
                             X_cut = X_rot[cut_indices]
                             Z_cut = Z_rot[cut_indices]
 
@@ -265,8 +270,12 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                             # 2.2 Fit Ellipse to Intersection
                             # ----------------------------------------------------------------------------------
                             ellipse_model = EllipseModel()
-                            ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
-                            xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params      # [Not real scale]
+
+                            try:
+                                ellipse_model.estimate(np.column_stack((X_reduced, Z_reduced)))
+                                xc, zc, a_ellipse, b_ellipse, theta = ellipse_model.params
+                            except Exception:
+                                continue
 
                             # 2.3 Generate Ellipse Points
                             # ----------------------------------------------------------------------------------
@@ -313,6 +322,11 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                                 # Apply the scaling factor to the ellipse
                                 X_ellipse_scaled = xc + scale_factor * (X_ellipse) #- xc)       # [Real scale]
                                 Z_ellipse_scaled = zc + scale_factor * (Z_ellipse)# - zc)
+
+                                idx_max = np.argmax(Z_ellipse_scaled)
+                                idx_min = np.argmin(Z_ellipse_scaled)
+                                x_at_Z_max = X_ellipse_scaled[idx_max]
+                                x_at_Z_min = X_ellipse_scaled[idx_min]
 
                                 # Scale the intersection points
                                 x1_scaled = xc + scale_factor * (x1)# - xc)
@@ -950,33 +964,16 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                                 # SAVING VARIABLES: 
                                 best_combination = (z0, angle_x, angle_y, angle_z, delta)
                                 quality_factors = (R2_B, R2_Bx, R2_By, R2_Bz, R2_avg)
-
-                                # Plot 1: Oriented Flux Rope and intersection with plane y = 0
                                 plot1_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, percentage_in_upper_half, z_cut_scaled, xs, ys, zs)
-
-                                # Plot 2: 3D Representation
                                 plot2_vars = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
-                            
-                                # Plot 3: Cross section and trajectory inside
                                 plot3_vars = (x_ellipse_local, y_ellipse_local, x_local, y_local, x_inter_local, y_inter_local, h_line_local, v_line_local, a_local, b_local, x_ellipse_rotated, y_ellipse_rotated, x_traj_rotated, y_traj_rotated, x_inter_rotated, y_inter_rotated, h_line_rotated, v_line_rotated, chord_angle_right)
-
-                                # Plot 4: Radial and angular values of the trajectory parametrization
                                 plot4_vars = (x_local, r_vals, phi_vals)
-
-                                # Plot 5: In-situ data in Local Cartesian coordinates vs original GSE exp
-                                plot5_vars = (x_traj_GSE, B_GSE_exp_tot, Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp, x_traj, Bx_Local_exp, By_Local_exp, Bz_Local_exp, B_Local_total_exp) 
-
-                                # Plot 6: In-situ Cylindrical Components and fitted model
-                                plot6_vars = (x_traj, B_total_exp_cyl, Br_exp, By_exp_cyl, Bphi_exp, B_vector, Br_vector, By_vector, Bphi_vector) 
-
-                                # Plot 7: Fitted Local and GSE components
+                                plot5_vars = (x_traj_GSE, B_GSE_exp_tot, Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp, x_traj, Bx_Local_exp, By_Local_exp, Bz_Local_exp, B_Local_total_exp)
+                                plot6_vars = (x_traj, B_total_exp_cyl, Br_exp, By_exp_cyl, Bphi_exp, B_vector, Br_vector, By_vector, Bphi_vector)
                                 plot7_vars = (x_traj, B_vector, Bx_traj, By_traj_cartesian, Bz_traj, x_traj_GSE, B_total_GSE, Bx_GSE, By_GSE, Bz_GSE)
+                                viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
+                                plot1_extra_vars = x_at_Z_max, x_at_Z_min, x_limits, z_limits
 
-
-                                viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled,
-                                                scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, 
-                                                X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
-                                
                                 # CME Propagation
                                 a_section, b_section = a_local, b_local
                                 
@@ -991,26 +988,24 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     if best_R2 is not None and best_combination is not None:
         st.success(f"Best R2 found: {best_R2:.4f}")
 
+        R2_B, R2_Bx, R2_By, R2_Bz, R2_avg = quality_factors
         z0, angle_x, angle_y, angle_z, delta = best_combination
-        R2_B, R2_Bx, R2_By, R2_Bz, R2_avg = quality_factors 
 
         # Plot 1: Oriented Flux Rope and intersection with plane y = 0
         X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, percentage_in_upper_half, z_cut_scaled, xs, ys, zs = plot1_vars
+        x_at_Z_max, x_at_Z_min, x_limits, z_limits = plot1_extra_vars
 
         # Plot 2: 3D Representation
         X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm =  plot2_vars
 
         # Plt 2B: 3D Interactive Plot
-        viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled,
-                                            scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, 
-                                            X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
+        X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm = viz_3d_vars_opt
 
         # Plot 3: Cross section and trajectory inside
         x_ellipse_local, y_ellipse_local, x_local, y_local, x_inter_local, y_inter_local, h_line_local, v_line_local, a_local, b_local, x_ellipse_rotated, y_ellipse_rotated, x_traj_rotated, y_traj_rotated, x_inter_rotated, y_inter_rotated, h_line_rotated, v_line_rotated, chord_angle_right = plot3_vars
 
         # Plot 4: Radial and angular values of the trajectory parametrization
         x_local, r_vals, phi_vals = plot4_vars
-        r_physical = r_vals * a_local
 
         # Plot 5: In-situ data in Local Cartesian coordinates vs original GSE exp
         x_traj_GSE, B_GSE_exp_tot, Bx_GSE_exp, By_GSE_exp, Bz_GSE_exp, x_traj, Bx_Local_exp, By_Local_exp, Bz_Local_exp, B_Local_total_exp = plot5_vars 
@@ -1055,7 +1050,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # Límites de la línea vertical (usamos z_limits para cubrir toda la elipse)
         z_vertical_limits = [z_limits[0], z_limits[1]]
-
+        x0, x1 = X_intersections_scaled
 
         # Create figure with two subplots: one 3D and one 2D
         fig = plt.figure(figsize=(10, 5))
@@ -1071,7 +1066,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         z_plane = np.linspace(z_limits[0], z_limits[1], 10)
         X_plane, Z_plane = np.meshgrid(x_plane, z_plane)
         ax1.plot_surface(X_plane, y_plane, Z_plane, color='gray', alpha=0.2)
-        ax1.plot(x_z_zero_limits, [0, 0], [0, 0], 'k--', linewidth=1.5, label="z = 0")
+        ax1.plot([x0, x1], [0, 0], [0, 0], 'k--', linewidth=1.5, label="z = 0")
         ax1.plot([x_vertical, x_vertical], [0, 0], z_vertical_limits, 'b--', linewidth=1.5, label="Z max/min")
         ax1.set_xlabel("X")
         ax1.set_ylabel("Y")
@@ -1853,7 +1848,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # Define the current density expressions (symbolic, for display)
         mu_0_sym = sp.Float(mu_0_sym)  # Permeability of free space (for symbolic use)
-        jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (B + D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
+        jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
         # For jy, consider two cases: if delta is between 0.999 and 1.001 or not
         if 0.999 <= float(delta) <= 1.001:
             jy = (1 / (delta * mu_0_sym)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
@@ -1891,7 +1886,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             """
             Radial current density component using fitted parameters (numerical evaluation)
             """
-            return (- A * r**(n_by-1) / (delta * mu_0)) * (B + C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
+            return (- A * r**(n_by-1) / (delta * mu_0)) * ( C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
 
         def jy_model_fitted(r, alpha):
             """
@@ -1978,6 +1973,34 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
         st.header("CME Propagation")
+
+        # Compute the date corresponding to ddoy_exp[0]
+        initial_doy = initial_date.timetuple().tm_yday + (initial_date.hour / 24.0) + (initial_date.minute / (24.0 * 60.0)) + (initial_date.second / (24.0 * 3600.0))
+        if ddoy_exp[0] < initial_doy and ddoy_exp[0] < 32:  # Likely in the next year
+            year = initial_date.year + 1
+        else:
+            year = initial_date.year
+
+        # Convert ddoy_exp[0] to a datetime object
+        doy = int(ddoy_exp[0])  # Integer part of the day-of-year
+        fractional_day = ddoy_exp[0] - doy  # Fractional part of the day
+        seconds_in_day = 24 * 3600  # Seconds in a day
+        fractional_seconds = fractional_day * seconds_in_day  # Convert fractional day to seconds
+
+        # Start from January 1st of the year
+        base_date = datetime(year, 1, 1)
+        # Add the days (doy - 1 because DOY starts at 1) and the fractional seconds
+        days_to_add = doy - 1  # Subtract 1 because DOY=1 is January 1st
+        event_start_date = base_date + timedelta(days=days_to_add, seconds=fractional_seconds)
+        obstime = parse_time(event_start_date)
+
+        # Calculate the satellite's position at this date using the mission parameter
+        try:
+            coord = get_horizons_coord(mission, obstime)
+            distance, lon_ecliptic = get_position_data(mission, coord, obstime)
+        except Exception as e:
+            st.warning(f"Could not obtain the satellite position for {mission} at {event_start_date}: {e}")
+            distance, lon_ecliptic = 0.0, 0.0  # Default values if the calculation fails
 
         # ----------------------------------------------------------------------------------
         # Plot 11) Propagation along the Interplanetary Medium
@@ -3102,6 +3125,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         st.subheader("CME Interaction with Earth and Mars")
 
         # Parse the dates of interest
+        satellite_date = parse_time(fecha_llegada_r1)
         earth_date = parse_time(fecha_llegada_r2)
         mars_date = parse_time(fecha_llegada_r3)
 
@@ -3114,6 +3138,11 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         mars_coord = get_body_heliographic_stonyhurst('Mars', mars_date)
         mars_distance, mars_lon = get_position_data('Mars', mars_coord, mars_date)
         mars_lon = mars_lon % 360  # Ensure longitude is in [0, 360)
+
+        # Calculate the satellite's position at fecha_llegada_r1 (initial_date)
+        satellite_coord = get_horizons_coord(mission, satellite_date)
+        satellite_distance, satellite_lon = get_position_data(mission, satellite_coord, satellite_date)
+        satellite_lon = satellite_lon % 360  # Ensure longitude is in [0, 360)
 
         # Compute the CME's center ecliptic longitude
         cme_lon = lon_ecliptic % 360  # Satellite's ecliptic longitude
@@ -3130,6 +3159,10 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # Display the calculated positions
         st.markdown(f"""
+        **Satellite ({mission}) Position at {satellite_date.strftime('%Y-%m-%d %H:%M:%S')}**:
+        - Radial Distance: {satellite_distance:.3f} AU
+        - Ecliptic Longitude: {satellite_lon:.2f}°
+
         **Earth's Position at {earth_date.strftime('%Y-%m-%d %H:%M:%S')}**:
         - Radial Distance: {earth_distance:.3f} AU
         - Ecliptic Longitude: {earth_lon:.2f}°
@@ -3138,6 +3171,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         - Radial Distance: {mars_distance:.3f} AU
         - Ecliptic Longitude: {mars_lon:.2f}°
         """)
+
 
         # Display CME propagation details
         st.markdown("**CME Propagation:**")
@@ -3168,13 +3202,13 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # Display the encounter analysis based on ecliptic longitude intervals
         st.markdown("**CME Encounter Analysis (Based on Ecliptic Longitude):**")
         if earth_within_interval:
-            st.markdown(f"- **Earth**: The CME is likely to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+            st.markdown(f"- **Earth**: The CME is **likely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
         else:
-            st.markdown(f"- **Earth**: The CME is unlikely to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is not within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+            st.markdown(f"- **Earth**: The CME is **unlikely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is not within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
         if mars_within_interval:
-            st.markdown(f"- **Mars**: The CME is likely to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
+            st.markdown(f"- **Mars**: The CME is **likely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
         else:
-            st.markdown(f"- **Mars**: The CME is unlikely to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is not within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
+            st.markdown(f"- **Mars**: The CME is **unlikely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is not within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
 
         # # Additional note on limitations
         # st.markdown("*Note*: This analysis is based solely on ecliptic longitude intervals and does not account for radial distance differences or the CME's 3D trajectory and temporal evolution.")
@@ -3183,6 +3217,30 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # ----------------------------------------------------------------------------------
         # 18) Plot of the Interplanetary Scene
         # ----------------------------------------------------------------------------------
+        # st.subheader("Convergence Analysis")
+
+        # st.markdown(f"""
+        # <h3 style='font-size:16px;'>Checking Parameters</h3>
+        # <ul>
+        #     <li><b>Theta XY:</b> {theta_xy_deg:.2e}°</li>
+        #     <li><b>Phi XZ:</b> {phi_xz_deg:.2e}°</li>
+        #     <li><b>z0:</b> {z0:.2f} </li>
+        #     <li><b>theta_x:</b> {np.rad2deg(angle_x):.2f}°</li>
+        #     <li><b>theta_y:</b> {np.rad2deg(angle_y):.2f}°</li>
+        #     <li><b>theta_z:</b>  {np.rad2deg(angle_z):.2f}</li>
+        #     <li><b>delta:</b> {delta:.2f} kg</li>
+        #     <li><b>Ravg: </b> {R2_avg:.4f} </li>
+        #     <li><b>gamma1:</b> {gamma_1_deg:.2f}°</li>
+        #     <li><b>portionRight:</b> {prop_y_pos*100:.1f}%</li>
+        #     <li><b>t1-t0:</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
+        #     <li><b>t2-t0:</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
+        #     <li><b>t3-t0:</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
+        #     <li><b>inclination:</b> {theta_x_deg:.2f}°</li>
+        #     <li><b>cutSectionAngle:</b> {phi0_deg:.2f}°</li>
+        #     <li><b>gammaCME:</b>  {cme_center_lon:.2f}°</li>
+        #     <li><b>intervalEarth:</b> ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)</li>
+        # </ul>
+        # """, unsafe_allow_html=True)
 
 
     if best_combination is None:
