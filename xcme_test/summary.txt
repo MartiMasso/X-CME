@@ -1,5 +1,0 @@
-Propagació pel medi interplanetari feta, amb gràfiques corresponents. 
-
-Urgent: 
-
-(1) Corregir codi de Model 2. (camp magnètic/corrents). Factor 10e3. 
