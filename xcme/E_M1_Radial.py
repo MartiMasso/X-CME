@@ -148,8 +148,9 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     angle_x_range = np.linspace(-np.pi + 0.2, np.pi - 0.2, 2 * N_iter)       # Interval (-π, π)
     angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
     angle_z_range = np.linspace(-np.pi + 0.1, np.pi - 0.1, 2 * N_iter)   # Interval (-π, π)
-    delta_range = np.linspace(0.5, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
-    delta_range = np.array([1])
+    delta_range = np.linspace(0.7, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    # delta_range = np.array([0.7])
+    # delta_range = np.array([1])
 
     total_iterations = len(z0_range) * len(angle_x_range) * len(angle_y_range) * len(angle_z_range) * len(delta_range)
     st.write("Total Iterations:", total_iterations)
@@ -175,7 +176,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 20  # We'll typically use 30º to ensure we are not too much at the leg of the CME
+    angle_min_x_deg = 35  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
     angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
@@ -184,11 +185,40 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     # ----------------------------------------------------------------------------------
     # Main Loop           
     # ----------------------------------------------------------------------------------
-    for z0 in z0_range:
+    for angle_z in angle_z_range:
         for angle_x in angle_x_range:
             for angle_y in angle_y_range:
-                if abs(np.sin(angle_y) * np.cos(angle_x)) <= np.cos(angle_min_x) and abs(np.cos(angle_x) * np.cos(angle_y)) <= np.cos(angle_min_z):
-                    for angle_z in angle_z_range:
+                # matrices de rotación
+                Rx = np.array([
+                    [1,               0,                0],
+                    [0,  np.cos(angle_x), -np.sin(angle_x)],
+                    [0,  np.sin(angle_x),  np.cos(angle_x)],
+                ])
+                Ry = np.array([
+                    [ np.cos(angle_y), 0, np.sin(angle_y)],
+                    [               0, 1,               0],
+                    [-np.sin(angle_y), 0, np.cos(angle_y)],
+                ])
+                Rz = np.array([
+                    [ np.cos(angle_z), -np.sin(angle_z), 0],
+                    [ np.sin(angle_z),  np.cos(angle_z), 0],
+                    [               0,                0, 1],
+                ])
+
+                # vector inicial del eje (alineado con X)
+                v__0 = np.array([0.0, 0.0, 1.0])
+
+                # rotación compuesta (ajusta el orden si tu transformación es distinta)
+                R1 = Rz @ Ry @ Rx
+                v_axis = R1 @ v__0
+
+                # normalizamos por si acaso
+                cos_theta1 = np.clip(v_axis[0] / np.linalg.norm(v_axis), -1.0, 1.0)
+                angle_with_x = np.arccos(abs(cos_theta1))  # usamos abs() si da igual hacia +X o -X
+
+                # comprobación
+                if angle_with_x >= angle_min_x:
+                    for z0 in z0_range:
                         for delta in delta_range:
                             current_iteration += 1
                             progress_percent = int((current_iteration / total_iterations) * 100)
@@ -939,9 +969,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm =  plot2_vars
 
         # Plt 2B: 3D Interactive Plot
-        viz_3d_vars_opt = (X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled,
-                                            scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, 
-                                            X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm)
+        X_rot_scaled, Y_rot_scaled, Z_rot_scaled, X_ellipse_scaled, Z_ellipse_scaled, X_intersections_scaled, Z_intersections_scaled, scale_factor, a, Z_max_scaled, z_cut_scaled, x1_scaled, x2_scaled, X_proj_ellipse, Y_proj_ellipse, Z_proj_ellipse, X_proj_inter, Y_proj_inter, Z_proj_inter, X_proj_traj, Y_proj_traj, Z_proj_traj, d, axis_cylinder_norm = viz_3d_vars_opt
 
         # Plot 3: Cross section and trajectory inside
         x_ellipse_local, y_ellipse_local, x_local, y_local, x_inter_local, y_inter_local, h_line_local, v_line_local, a_local, b_local, x_ellipse_rotated, y_ellipse_rotated, x_traj_rotated, y_traj_rotated, x_inter_rotated, y_inter_rotated, h_line_rotated, v_line_rotated, chord_angle_right = plot3_vars
@@ -961,10 +989,6 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         a_Br = params_Br_fit 
         A_By, B_By = params_By_fit 
         C_Bphi = params_Bphi_fit 
-
-        # Extra Previous Calculations
-        axis_cylinder_norm = axis_cylinder / np.linalg.norm(axis_cylinder)
-        # st.markdown(f"**Axis vector**: ({axis_cylinder_norm[0]:.3f}, {axis_cylinder_norm[1]:.3f}, {axis_cylinder_norm[2]:.3f})")
 
         # Compute the angle (radians) between the vector and the XY plane
         theta_xy = np.arctan2(axis_cylinder_norm[2],np.hypot(axis_cylinder_norm[0],  axis_cylinder_norm[1]))
@@ -1052,7 +1076,6 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         st.pyplot(fig)
         plt.close(fig)
 
-        axis_cylinder_norm = axis_cylinder / np.linalg.norm(axis_cylinder)
         st.markdown(f"**Axis vector**: ({axis_cylinder_norm[0]:.3f}, {axis_cylinder_norm[1]:.3f}, {axis_cylinder_norm[2]:.3f})")
 
         # Compute the angle (radians) between the vector and the XY plane
@@ -1188,7 +1211,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
 
         # 10. Transverse Plane
         # Center of the square (point on the cylinder axis)
-        center = np.array([0, 0, d / axis_cylinder_norm[2]])  # Adjust based on your axis and d
+        center = np.array([0, 0, 0])  # Adjust based on your axis and d
 
         # Find two orthogonal vectors in the plane perpendicular to axis_cylinder_norm
         norm = np.array(axis_cylinder_norm)
@@ -1467,7 +1490,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         fig, ax = plt.subplots(figsize=(8, 6))
 
         # --- Datos exportados (líneas continuas) ---
-        ax.plot(x_traj, B_total_exp_cyl,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
+        # ax.plot(x_traj, B_total_exp_cyl,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
         ax.plot(x_traj, Br_exp,            'b-', label=r'$\mathrm{exp}:B^r$')
         ax.plot(x_traj, By_exp_cyl,        'r-', label=r'$\mathrm{exp}:B^y$')
         ax.plot(x_traj, Bphi_exp,          'g-', label=r'$\mathrm{exp}:B^\varphi$')
@@ -1555,11 +1578,18 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
             2 * grphi_corrected * Br_vals_fitted * Bphi_vals_fitted
         )
 
+        # Calculamos sqrt(gphiphi) sobre la malla
+        sqrt_gphiphi = np.sqrt(gphiphi_corrected)
+
+        # Aplicamos la métrica a la componente Bphi
+        Bphi_metric_vals = Bphi_vals_fitted * sqrt_gphiphi
+
+
         # --- Mask points outside the ellipse (r > 1) ---
         mask = (r_grid > 1.0)
         Br_masked_fitted   = np.ma.array(Br_vals_fitted,   mask=mask)
         By_masked_fitted   = np.ma.array(By_vals_fitted,   mask=mask)
-        Bphi_masked_fitted = np.ma.array(Bphi_vals_fitted, mask=mask)
+        Bphi_masked_fitted = np.ma.array(Bphi_metric_vals, mask=mask)
         Btotal_masked_fitted = np.ma.array(B_total_fitted, mask=mask)
 
         # --- 2D contour plots in Streamlit (2x2) ---
@@ -1579,7 +1609,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
 
         for ax, field, title in zip(axs_flat, fields_fitted, titles):
             # Plot the ellipse boundary and trajectory first
-            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2, label="Ellipse Boundary")
+            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2)
             ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label="Trajectory")
             ax.set_aspect('equal', 'box')
             ax.set_xlabel("X local rotated")
