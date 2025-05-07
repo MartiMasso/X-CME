@@ -173,6 +173,13 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     angle_z_range = np.linspace(-np.pi/2 + 0.01, np.pi/2 - 0.01, N_iter)   # Interval (-π/2, π/2)
     delta_range = np.linspace(0.5, 1.0, N_iter)                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
 
+    # # ITERATIONS COMPLETE DOMAIN
+    # z0_range = np.linspace(-0.7, 0.7, int(N_iter/2))                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
+    # angle_x_range = np.linspace(-np.pi + 0.2, np.pi - 0.2, 2 * N_iter)       # Interval (-π, π)
+    # angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
+    # angle_z_range = np.linspace(-np.pi + 0.1, np.pi - 0.1, 2 * N_iter)   # Interval (-π, π)
+    # delta_range = np.linspace(0.5, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    # # delta_range = np.array([1])
 
     # Create a directory to store plots
     # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
@@ -183,7 +190,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     iteration_counter = 0
 
     total_iterations = len(z0_range) * len(angle_x_range) * len(angle_y_range) * len(angle_z_range) * len(delta_range)
-    st.write("Total Iterations:", total_iterations)
+    # st.write("Total Iterations:", total_iterations)
 
     best_R2 = -np.inf
     best_combination = None
@@ -201,20 +208,48 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 20  # We'll typically use 30º to ensure we are not too much at the leg of the CME
+    angle_min_x_deg = 35  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
     angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
 
-
     # ----------------------------------------------------------------------------------
     # Main Loop           
     # ----------------------------------------------------------------------------------
-    for z0 in z0_range:
+    for angle_z in angle_z_range:
         for angle_x in angle_x_range:
             for angle_y in angle_y_range:
-                if abs(np.sin(angle_y) * np.cos(angle_x)) <= np.cos(angle_min_x) and abs(np.cos(angle_x) * np.cos(angle_y)) <= np.cos(angle_min_z):
-                    for angle_z in angle_z_range:
+                # matrices de rotación
+                Rx = np.array([
+                    [1,               0,                0],
+                    [0,  np.cos(angle_x), -np.sin(angle_x)],
+                    [0,  np.sin(angle_x),  np.cos(angle_x)],
+                ])
+                Ry = np.array([
+                    [ np.cos(angle_y), 0, np.sin(angle_y)],
+                    [               0, 1,               0],
+                    [-np.sin(angle_y), 0, np.cos(angle_y)],
+                ])
+                Rz = np.array([
+                    [ np.cos(angle_z), -np.sin(angle_z), 0],
+                    [ np.sin(angle_z),  np.cos(angle_z), 0],
+                    [               0,                0, 1],
+                ])
+
+                # vector inicial del eje (alineado con X)
+                v__0 = np.array([0.0, 0.0, 1.0])
+
+                # rotación compuesta (ajusta el orden si tu transformación es distinta)
+                R1 = Rz @ Ry @ Rx
+                v_axis = R1 @ v__0
+
+                # normalizamos por si acaso
+                cos_theta1 = np.clip(v_axis[0] / np.linalg.norm(v_axis), -1.0, 1.0)
+                angle_with_x = np.arccos(abs(cos_theta1))  # usamos abs() si da igual hacia +X o -X
+
+                # comprobación
+                if angle_with_x >= angle_min_x:
+                    for z0 in z0_range:
                         for delta in delta_range:
                             current_iteration += 1
                             progress_percent = int((current_iteration / total_iterations) * 100)
@@ -435,8 +470,12 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                             # ----------------------------------------------------------------------
                             ellipse_model = EllipseModel()
                             ellipse_points = np.column_stack((X_proj_ellipse, Y_proj_ellipse))
-                            ellipse_model.estimate(ellipse_points)
-                            xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params     # [Real scale]
+                            success = ellipse_model.estimate(ellipse_points)
+                            if not success or ellipse_model.params is None:
+                                print("Ellipse fitting failed for projected points. Skipping iteration.")
+                                continue  # Skip to the next iteration of the loop
+
+                            xc_proj, yc_proj, a_proj, b_proj, theta_proj = ellipse_model.params  # [Real scale]
                             xc_proj, yc_proj = 0, 0  # Already centered at the origin
 
                             # Calculate the slope of the projected trajectory
@@ -687,11 +726,11 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
                             max_oscillatory = 1  # max(B + C*sin + D*cos) = 2
                             r_boundary = a_local * 10**3
-                            A_max = B_max / (max_oscillatory * r_boundary**n_by)  # Ensure A * r**n_by * max_oscillatory <= B_max
+                            A_max = (0.8 * B_max) / (max_oscillatory * r_boundary**n_by) # Ensure A * r**n_by * max_oscillatory <= B_max
 
                             By_bounds = (
-                                [0, -1, -1, -1, -np.pi, -B_max],  # Lower bounds: [A, B, C, D, alpha_0, E]
-                                [A_max, 1, 1, 1, np.pi, B_max]    # Upper bounds
+                                [0, -1, -1, -1, -np.pi, -0.2 * B_max],  # Lower bounds: [A, B, C, D, alpha_0, E]
+                                [A_max, 1, 1, 1, np.pi, 0.2 * B_max]    # Upper bounds
                             )
 
                             # No bounds for Br and Bphi (or set to reasonable ranges if needed)
@@ -1094,7 +1133,6 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         st.pyplot(fig)
         plt.close(fig)
 
-        axis_cylinder_norm = axis_cylinder / np.linalg.norm(axis_cylinder)
         st.markdown(f"**Axis vector**: ({axis_cylinder_norm[0]:.3f}, {axis_cylinder_norm[1]:.3f}, {axis_cylinder_norm[2]:.3f})")
 
         # Compute the angle (radians) between the vector and the XY plane
@@ -1107,6 +1145,19 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # using Unicode Greek letters θ (theta) and φ (phi):
         st.markdown(f"**θ (angle with the XY plane)**: {theta_xy_deg:.2f}°")
         st.markdown(f"**φ (angle with the XZ plane)**: {phi_xz_deg:.2f}°")
+
+        KM_PER_AU = 149_597_870.7  # kilometers per Astronomical Unit
+
+        if delta == 1:
+            # circular cross-section
+            radius_au = a_local / KM_PER_AU
+            st.markdown(f"**Radius of the Flux Rope (circular section)**: {radius_au:.4g} AU")
+        else:
+            # elliptical cross-section
+            major_au = a_local / KM_PER_AU
+            minor_au = b_local / KM_PER_AU
+            st.markdown(f"**Major axis of the elliptic section (a)**: {major_au:.4g} AU")
+            st.markdown(f"**Minor axis of the elliptic section (b)**: {minor_au:.4g} AU")
 
 
         # ----------------------------------------------------------------------------------
@@ -1578,18 +1629,19 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # --- Calcular coordenadas elípticas ---
         r_grid, alpha_grid = elliptical_coords(X_grid, Y_grid, xc, yc, a_ellipse, b_ellipse, theta_ellipse)
 
-        # --- Evaluar componentes del campo magnético ajustado en la malla ---
-        Br_vals_fitted = Br_model_fitted(r_grid, alpha_grid)
-        By_vals_fitted = By_model_fitted(r_grid, alpha_grid)
+        # --- Evaluate fitted magnetic field components on the mesh ---
+        Br_vals_fitted   = Br_model_fitted(r_grid, alpha_grid)
+        By_vals_fitted   = By_model_fitted(r_grid, alpha_grid)
         Bphi_vals_fitted = Bphi_model_fitted(r_grid, alpha_grid)
 
-        # --- Componentes métricos en la malla 2D ---
+        # --- Metric components on the 2D mesh ---
         grr_corrected = a_ell**2 * (np.cos(alpha_grid)**2 + delta**2 * np.sin(alpha_grid)**2)
         gyy_corrected = np.ones_like(r_grid)
         gphiphi_corrected = a_ell**2 * r_grid**2 * (np.sin(alpha_grid)**2 + delta**2 * np.cos(alpha_grid)**2)
         grphi_corrected = a_ell**2 * r_grid * np.sin(alpha_grid) * np.cos(alpha_grid) * (delta**2 - 1)
 
-        # --- Magnitud total del campo magnético ajustado en la malla ---
+
+        # --- Total magnitude of the fitted magnetic field on the mesh ---
         B_total_fitted = np.sqrt(
             grr_corrected * Br_vals_fitted**2 +
             gyy_corrected * By_vals_fitted**2 +
@@ -1597,14 +1649,21 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             2 * grphi_corrected * Br_vals_fitted * Bphi_vals_fitted
         )
 
-        # --- Enmascarar puntos fuera de la elipse (r > 1) ---
+        # Calculamos sqrt(gphiphi) sobre la malla
+        sqrt_gphiphi = np.sqrt(gphiphi_corrected)
+
+        # Aplicamos la métrica a la componente Bphi
+        Bphi_metric_vals = Bphi_vals_fitted * sqrt_gphiphi
+
+
+        # --- Mask points outside the ellipse (r > 1) ---
         mask = (r_grid > 1.0)
-        Br_masked_fitted = np.ma.array(Br_vals_fitted, mask=mask)
-        By_masked_fitted = np.ma.array(By_vals_fitted, mask=mask)
-        Bphi_masked_fitted = np.ma.array(Bphi_vals_fitted, mask=mask)
+        Br_masked_fitted   = np.ma.array(Br_vals_fitted,   mask=mask)
+        By_masked_fitted   = np.ma.array(By_vals_fitted,   mask=mask)
+        Bphi_masked_fitted = np.ma.array(Bphi_metric_vals, mask=mask)
         Btotal_masked_fitted = np.ma.array(B_total_fitted, mask=mask)
 
-        # --- Gráficos 2D de contorno en Streamlit (2x2) ---
+        # --- 2D contour plots in Streamlit (2x2) ---
         st.subheader("7) Magnetic Field Cross Section (Fitted)")
 
         fig, axs = plt.subplots(2, 2, figsize=(14, 12))  # 2 filas, 2 columnas
@@ -1612,7 +1671,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         titles = [r"$B_r$", r"$B_y$", r"$B_{\phi}$", r"$|\mathbf{B}|$"]
 
         x_traj_rotated, y_traj_rotated = x_traj_rotated * 10**3, y_traj_rotated * 10**3
-
+        
         # Flatten axs for easy iteration
         axs_flat = axs.flatten()
 
@@ -1621,7 +1680,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         for ax, field, title in zip(axs_flat, fields_fitted, titles):
             # Plot the ellipse boundary and trajectory first
-            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2, label="Ellipse Boundary")
+            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2)
             ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label="Trajectory")
             ax.set_aspect('equal', 'box')
             ax.set_xlabel("X local rotated")
@@ -1651,7 +1710,6 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
-
 
         # Fitted formulas of the magnetic field components
         # ----------------------------------------------------------------------------------
@@ -1947,20 +2005,30 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         axs_flat = axs.flatten()
 
         for ax, field, title in zip(axs_flat, fields_fitted, titles):
+            # Contour plots of the current density
             ctf = ax.contourf(X_grid, Y_grid, field, 50, cmap='viridis')
             ax.contour(X_grid, Y_grid, field, 10, colors='k', alpha=0.4)
-            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2, label="Ellipse Boundary")
-            ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label="Trajectory")
+
+            # Plot the ellipse WITHOUT a legend entry
+            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2, label='_nolegend_')
+            # Plot only the trajectory with its legend entry
+            ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label='Trajectory')
+
             ax.set_aspect('equal', 'box')
             ax.set_title(f"Fitted: {title}", fontsize=15)
             ax.set_xlabel("X local rotated")
             ax.set_ylabel("Y local rotated")
+
+            # Colorbar for current density
             fig.colorbar(ctf, ax=ax, shrink=0.9, label='Current Density (A/m²)')
-            ax.legend()
+
+            # Legend in the upper right corner showing only 'Trajectory'
+            ax.legend(loc='upper right')
 
         plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
+
 
 
 
