@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 from skimage.measure import EllipseModel
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import sympy as sp
 from matplotlib.path import Path
 from scipy.optimize import curve_fit
@@ -18,7 +19,6 @@ from scipy.stats import pearsonr
 # Necessary libraries for propagation of the CME
 from datetime import datetime, timedelta
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.integrate import odeint, solve_ivp
 import matplotlib.animation as animation
 from A_data import get_position_data
@@ -148,7 +148,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     angle_x_range = np.linspace(-np.pi + 0.2, np.pi - 0.2, 2 * N_iter)       # Interval (-π, π)
     angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
     angle_z_range = np.linspace(-np.pi + 0.1, np.pi - 0.1, 2 * N_iter)   # Interval (-π, π)
-    delta_range = np.linspace(0.7, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    delta_range = np.linspace(0.7, 1.2, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
     # delta_range = np.array([0.7])
     # delta_range = np.array([1])
 
@@ -176,9 +176,9 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 35  # We'll typically use 30º to ensure we are not too much at the leg of the CME
+    angle_min_x_deg = 45  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
-    angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
+    angle_min_z_deg = 25  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
 
 
@@ -480,7 +480,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
                             # ----------------------------------------------------------------------------------
                             dx = x_local[-1] - x_local[0]
                             dy = y_local[-1] - y_local[0]
-                            trajectory_angle = np.arctan2(dy, dx) + np.pi
+                            trajectory_angle = np.arctan2(dy, dx) #+ np.pi
 
                             rotation_2d = np.array([
                                 [np.cos(-trajectory_angle), -np.sin(-trajectory_angle)],
@@ -1001,6 +1001,13 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         # st.markdown(f"**θ (angle with the XY plane)**: {theta_xy_deg:.2f}°")
         # st.markdown(f"**φ (angle with the XZ plane)**: {phi_xz_deg:.2f}°")
 
+        mpl.rcParams.update({
+            'axes.titlesize': 16,
+            'axes.labelsize': 14,
+            'xtick.labelsize': 12,
+            'ytick.labelsize': 12,
+            'legend.fontsize': 12
+        })
 
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         # ----------------------------------------------------------------------------------
@@ -1454,27 +1461,26 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         st.subheader("5) In-Situ Local and GSE Data")
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
-        x_traj_GSE = x_traj_GSE[::-1]  # Reverse the order of x_traj_GSE for plotting
+
         # --- Plot GSE magnetic field components in local Cartesian coordinates ---
         ax1.plot(x_traj_GSE, B_GSE_exp_tot, 'k-', label=r'$|\mathbf{B}|$')
         ax1.plot(x_traj_GSE, Bx_GSE_exp, 'b-', label=r'$B_x$')
         ax1.plot(x_traj_GSE, By_GSE_exp, 'r-', label=r'$B_y$')
         ax1.plot(x_traj_GSE, Bz_GSE_exp, 'g-', label=r'$B_z$')
-        ax1.set_xlabel("X GSE rotated")
-        ax1.set_ylabel("B components in GSE (nT)")
-        ax1.set_title("B components in GSE Reference System")
+        ax1.set_xlabel("X-axis GSE")
+        ax1.set_ylabel("Magnetic field value [nT]")
+        ax1.set_title("GSE Experimental Componentes in the GSE Coordinates")
         ax1.legend()
         ax1.grid(True)
-        x_traj_GSE = x_traj_GSE[::-1]  # Reverse the order of x_traj_GSE for plotting
 
         # --- Plot LOCAL magnetic field components in GSE coordinates ---
         ax2.plot(x_traj, Bx_Local_exp, 'b-', label=r"$B_x^L$")
         ax2.plot(x_traj, By_Local_exp, 'r-', label=r"$B_y^L$")
         ax2.plot(x_traj, Bz_Local_exp, 'g-', label=r"$B_z^L$")
         ax2.plot(x_traj, B_Local_total_exp, 'k--', label=r"$|\mathbf{B}|$")
-        ax2.set_xlabel("X Local axis")
-        ax2.set_ylabel("Magnetic Field Value (nT)")
-        ax2.set_title("B components in Local Cartesian Reference System")
+        ax2.set_xlabel("X-axis Local")
+        ax2.set_ylabel("Magnetic field value [nT]")
+        ax2.set_title("Local-Cartesian Experimental Magnetic Field Components")
         ax2.legend()
         ax2.grid(True)
 
@@ -1490,7 +1496,7 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         fig, ax = plt.subplots(figsize=(8, 6))
 
         # --- Datos exportados (líneas continuas) ---
-        # ax.plot(x_traj, B_total_exp_cyl,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
+        ax.plot(x_traj, B_Local_total_exp,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
         ax.plot(x_traj, Br_exp,            'b-', label=r'$\mathrm{exp}:B^r$')
         ax.plot(x_traj, By_exp_cyl,        'r-', label=r'$\mathrm{exp}:B^y$')
         ax.plot(x_traj, Bphi_exp,          'g-', label=r'$\mathrm{exp}:B^\varphi$')
@@ -1502,15 +1508,14 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         ax.plot(x_traj, Bphi_vector,       'g--', linewidth=2.0, label=r'$\mathrm{fit}:B^\varphi$')
 
         # Etiquetas y ajustes
-        ax.set_xlabel("X local rotated")
-        ax.set_ylabel("Magnetic Field (Cylindrical Components)")
-        ax.set_title("Experimental vs Fitted in Cylindrical Coordinates")
+        ax.set_xlabel("Radial distance [km]")
+        ax.set_ylabel("Magnetic Field [nT]")
+        ax.set_title("Experimental vs Fitted Magnetic Field in Cylindrical Coordinates")
         ax.grid(True)
         ax.legend(loc='upper right', ncol=2, fontsize='small')
 
         plt.tight_layout()
         st.pyplot(fig)
-
 
         # ----------------------------------------------------------------------------------
         # Plot 7) Magnetic field representation in the cross section
@@ -2114,7 +2119,11 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         else:
             theta_x = np.pi/2 if vector_director[2] > 0 else -np.pi/2
         theta_x_deg = np.degrees(theta_x)
-
+        if theta_x_deg > 90:
+            theta_x_deg -= 180
+        elif theta_x_deg < -90:
+            theta_x_deg += 180
+            
         if vector_director[1] != 0:
             tan_phi0 = -vector_director[0] * np.cos(theta_x) / vector_director[1]
             phi0 = np.arctan(tan_phi0)
@@ -2439,6 +2448,27 @@ def fit_M1_radial(data, initial_point, final_point, initial_date, final_date,  m
         st.components.v1.html(html_video, height=600)
 
 
+        # ———————————————————————————————
+        # 12.A) Print CME speeds at r0, r1, r2 and r3
+        # ———————————————————————————————
+
+        # Convert to km and km/s
+        r_full_km = r_full / 1e3
+        v_full_kms = v_full / 1e3
+
+        # Key distances (in metres)
+        key_points = {
+            "r₀ (2.5 Rₛ)":               r0,
+            f"r₁ (satellite at {distance:.2f} AU)": r1,
+            "r₂ (1 AU)":                 r2,
+            "r₃ (1.524 AU)":             r3
+        }
+
+        st.subheader("CME Speed at Key Distances")
+        for label, r_m in key_points.items():
+            # interpolate v_full (m/s) at r_m, then convert to km/s
+            v_kms = np.interp(r_m, r_full, v_full) / 1e3
+            st.markdown(f"- **Speed at {label}:** {v_kms:.2f} km/s")
 
 
         # ----------------------------------------------------------------------------------
