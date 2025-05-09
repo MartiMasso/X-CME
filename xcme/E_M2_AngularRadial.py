@@ -13,11 +13,11 @@ from sympy.printing.latex import LatexPrinter
 from A_data import identify_coordinate_system
 from matplotlib import colors
 import os
+import matplotlib as mpl
 
 # Import necessary libraries
 from datetime import datetime, timedelta
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.integrate import odeint, solve_ivp
 import matplotlib.animation as animation
 from tqdm import tqdm
@@ -181,16 +181,17 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     # delta_range = np.linspace(0.5, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
     # # delta_range = np.array([1])
 
-    # Create a directory to store plots
-    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
-    # if not os.path.exists(output_dir):
-    #     os.makedirs(output_dir)
-
-    # Counter for unique filenames (optional, can use parameters instead)
-    iteration_counter = 0
+    # SYNTHETIC FR ITERATIONS
+    z0_range = np.linspace(-0.7, 0.7, int(N_iter/2))                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
+    angle_x_range = np.linspace(-np.pi + 0.2, np.pi - 0.2, 2 * N_iter)       # Interval (-π, π)
+    angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
+    angle_z_range = np.linspace(-np.pi + 0.1, np.pi - 0.1, 2 * N_iter)   # Interval (-π, π)
+    delta_range = np.linspace(0.7, 1.2, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    # delta_range = np.array([0.7])
+    # delta_range = np.array([1])
 
     total_iterations = len(z0_range) * len(angle_x_range) * len(angle_y_range) * len(angle_z_range) * len(delta_range)
-    # st.write("Total Iterations:", total_iterations)
+    st.write("Total Iterations:", total_iterations)
 
     best_R2 = -np.inf
     best_combination = None
@@ -205,12 +206,17 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
     current_iteration = 0
     rho_avg_best = -10000
 
+    # # Create a directory to store plots
+    # output_dir = "/Users/martimasso/Desktop/NASA/FR-Fitting-NASA/PlotsSaved"
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
+
     # Counter for unique filenames (optional, can use parameters instead)
     iteration_counter = 0
 
-    angle_min_x_deg = 35  # We'll typically use 30º to ensure we are not too much at the leg of the CME
+    angle_min_x_deg = 45  # We'll typically use 30º to ensure we are not too much at the leg of the CME
     angle_min_x = np.deg2rad(angle_min_x_deg) 
-    angle_min_z_deg = 20  # Minimum angle of the FR axis wrt the z-axis. 
+    angle_min_z_deg = 25  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
 
     # ----------------------------------------------------------------------------------
@@ -719,53 +725,80 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                             # Data preparation (keeping your original structure)
                             data_fit = np.vstack((r_vals, phi_vals)).T
 
-                            # Initial guesses for the fitting
-                            initial_guess_Br = [0.0]  # For Br (although it’s fixed at 0)
-                            initial_guess_By = [1.0, 1.0, 0.1, 0.1, 0.0, 1.0]  # [A, B, C, D, alpha_0, E]
-                            initial_guess_Bphi = [1.0, 0.0, 0.0]  # [K1, K2, K3]
+                            # # Initial guesses for the fitting
+                            # initial_guess_Br = [0.0]  # For Br (although it’s fixed at 0)
+                            # initial_guess_By = [1.0, 1.0, 0.1, 0.1, 0.0, 1.0]  # [A, B, C, D, alpha_0, E]
+                            # initial_guess_Bphi = [1.0, 0.0, 0.0]  # [K1, K2, K3]
 
                             max_oscillatory = 1  # max(B + C*sin + D*cos) = 2
                             r_boundary = a_local * 10**3
                             A_max = (0.8 * B_max) / (max_oscillatory * r_boundary**n_by) # Ensure A * r**n_by * max_oscillatory <= B_max
 
-                            By_bounds = (
-                                [0, -1, -1, -1, -np.pi, -0.2 * B_max],  # Lower bounds: [A, B, C, D, alpha_0, E]
-                                [A_max, 1, 1, 1, np.pi, 0.2 * B_max]    # Upper bounds
-                            )
+                            E_bound = max(0.2 * B_max, abs(np.mean(By_exp_cyl)) * 1.2)
 
-                            # No bounds for Br and Bphi (or set to reasonable ranges if needed)
-                            Br_bounds = ([-np.inf], [np.inf])
+                            By_bounds = (
+                                [      0,    -1,   -1,   -1,    -np.pi,    -E_bound],
+                                [  A_max,     1,    1,    1,     np.pi,     E_bound]
+                            )
+                            Br_bounds   = ([-np.inf], [np.inf])
                             Bphi_bounds = ([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf])
 
+                            A0      = A_max / 2
+                            B0      = 0.5
+                            C0      = 0.1
+                            D0      = 0.1
+                            alpha0  = 0.0
+                            E0      = np.mean(By_exp_cyl)
+
+                            initial_guess_Br   = [0.0]
+                            initial_guess_By   = [A0, B0, C0, D0, alpha0, E0]
+                            initial_guess_Bphi = [1.0, 0.0, 0.0]
 
                             try:
-                            # Curve fitting for each component
-                                params_Br, _ = curve_fit(model_Br, data_fit.T, Br_exp, p0=initial_guess_Br)
-                                a_Br = params_Br[0]  # Extract the scalar value
+                                # Ajuste para Br (si se quisiera usar bounds)
+                                params_Br, _ = curve_fit(
+                                    model_Br,
+                                    data_fit.T,
+                                    Br_exp,
+                                    p0=initial_guess_Br,
+                                    bounds=Br_bounds
+                                )
+                                a_Br = params_Br[0]
                                 Br_fitted = model_Br(data_fit.T, a_Br)
 
-                                params_By, _ = curve_fit(model_By, data_fit.T, By_exp_cyl, p0=initial_guess_By)  # Use By_exp_cyl
+                                # Ajuste para By con nuevos bounds y p0 no nulo
+                                params_By, _ = curve_fit(
+                                    model_By,
+                                    data_fit.T,
+                                    By_exp_cyl,
+                                    p0=initial_guess_By,
+                                    bounds=By_bounds
+                                )
                                 A_By, B_By, C_By, D_By, alpha0_By, E_By = params_By
                                 By_fitted = model_By(data_fit.T, A_By, B_By, C_By, D_By, alpha0_By, E_By)
 
-                                params_Bphi, _ = curve_fit(model_Bphi, data_fit.T, Bphi_exp, p0=initial_guess_Bphi)
+                                # Ajuste para Bphi
+                                params_Bphi, _ = curve_fit(
+                                    model_Bphi,
+                                    data_fit.T,
+                                    Bphi_exp,
+                                    p0=initial_guess_Bphi,
+                                    bounds=Bphi_bounds
+                                )
                                 K1_Bphi, K2_Bphi, K3_Bphi = params_Bphi
                                 Bphi_fitted = model_Bphi(data_fit.T, K1_Bphi, K2_Bphi, K3_Bphi)
 
-                                # Calculation of R² for each component
-                                ss_tot_Br = np.sum((Br_exp - np.mean(Br_exp))**2)
-                                ss_res_Br = np.sum((Br_exp - Br_fitted)**2)
-                                R2_Br = 1 - (ss_res_Br / ss_tot_Br) if ss_tot_Br != 0 else 0
+                                # Cálculo de R² para cada componente
+                                def calc_R2(exp, fitted):
+                                    ss_tot = np.sum((exp - np.mean(exp))**2)
+                                    ss_res = np.sum((exp - fitted)**2)
+                                    return 1 - ss_res/ss_tot if ss_tot != 0 else 0
 
-                                ss_tot_By = np.sum((By_exp_cyl - np.mean(By_exp_cyl))**2)
-                                ss_res_By = np.sum((By_exp_cyl - By_fitted)**2)
-                                R2_By = 1 - (ss_res_By / ss_tot_By) if ss_tot_By != 0 else 0
+                                R2_Br   = calc_R2(Br_exp, Br_fitted)
+                                R2_By   = calc_R2(By_exp_cyl, By_fitted)
+                                R2_Bphi = calc_R2(Bphi_exp, Bphi_fitted)
+                                R2_avg  = (R2_Br + R2_By + R2_Bphi) / 3
 
-                                ss_tot_Bphi = np.sum((Bphi_exp - np.mean(Bphi_exp))**2)
-                                ss_res_Bphi = np.sum((Bphi_exp - Bphi_fitted)**2)
-                                R2_Bphi = 1 - (ss_res_Bphi / ss_tot_Bphi) if ss_tot_Bphi != 0 else 0
-
-                                R2_avg = (R2_Br + R2_By + R2_Bphi) / 3
 
                                 # Fitted vectors
                                 Br_vector = model_Br(data_fit.T, a_Br)
@@ -1058,6 +1091,14 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         a_Br = params_Br_fit
         A_By, B_By, C_By, D_By, alpha0_By, E_By = params_By_fit
         K1_Bphi, K2_Bphi, K3_Bphi = params_Bphi_fit
+
+        mpl.rcParams.update({
+            'axes.titlesize': 16,
+            'axes.labelsize': 14,
+            'xtick.labelsize': 12,
+            'ytick.labelsize': 12,
+            'legend.fontsize': 12
+        })
 
     
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1527,9 +1568,9 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         ax1.plot(x_traj_GSE, Bx_GSE_exp, 'b-', label=r'$B_x$')
         ax1.plot(x_traj_GSE, By_GSE_exp, 'r-', label=r'$B_y$')
         ax1.plot(x_traj_GSE, Bz_GSE_exp, 'g-', label=r'$B_z$')
-        ax1.set_xlabel("X local rotated")
-        ax1.set_ylabel("In-situ GSE in x-Local Axis")
-        ax1.set_title("GSE in x-Local")
+        ax1.set_xlabel("X-axis GSE")
+        ax1.set_ylabel("Magnetic field value [nT]")
+        ax1.set_title("GSE Experimental Componentes in the GSE Coordinates")
         ax1.legend()
         ax1.grid(True)
 
@@ -1538,9 +1579,9 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         ax2.plot(x_traj, By_Local_exp, 'r-', label=r"$B_y^L$")
         ax2.plot(x_traj, Bz_Local_exp, 'g-', label=r"$B_z^L$")
         ax2.plot(x_traj, B_Local_total_exp, 'k--', label=r"$|\mathbf{B}|$")
-        ax2.set_xlabel("X GSE axis")
-        ax2.set_ylabel("In-situ GSE in x-GSE Axis")
-        ax2.set_title("GSE Coordinates")
+        ax2.set_xlabel("X-axis Local")
+        ax2.set_ylabel("Magnetic field value [nT]")
+        ax2.set_title("Local-Cartesian Experimental Magnetic Field Components")
         ax2.legend()
         ax2.grid(True)
 
@@ -1552,29 +1593,27 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         st.subheader("6) In-Situ and Fitted Cylindrical Components")
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+        # Crear un único plot
+        fig, ax = plt.subplots(figsize=(8, 6))
 
-        # --- Plot (1): Cylindrical Coordinates for Exported Data ---
-        ax1.plot(x_traj, B_total_exp_cyl, 'k-', label=r'$|\mathbf{B}|$')
-        ax1.plot(x_traj, Br_exp, 'b-', label=r'$B^r$')
-        ax1.plot(x_traj, By_exp_cyl, 'r-', label=r'$B^y$')
-        ax1.plot(x_traj, Bphi_exp, 'g-', label=r'$B^\varphi$')
-        ax1.set_xlabel('X local rotated')
-        ax1.set_ylabel('Magnetic Field')
-        ax1.set_title('Cylindrical Coordinates (Exported Data)')
-        ax1.grid(True)
-        ax1.legend()
-        
-        # --- Plot (2): Fitted Cylindrical Coordinates ---
-        ax2.plot(x_traj, B_vector, 'k-', label=r'$|\mathbf{B}|$')
-        ax2.plot(x_traj, Br_vector, 'b-', label=r'$B^r$')
-        ax2.plot(x_traj, By_vector, 'r-', label=r'$B^y$')
-        ax2.plot(x_traj, Bphi_vector, 'g-', label=r'$B^\varphi$')
-        ax2.set_xlabel("X local rotated")
-        ax2.set_ylabel("Magnetic Field (Cylindrical Components)")
-        ax2.set_title("Fitted Cylindrical Coordinates")
-        ax2.grid(True)
-        ax2.legend()
+        # --- Datos exportados (líneas continuas) ---
+        ax.plot(x_traj, B_Local_total_exp,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
+        ax.plot(x_traj, Br_exp,            'b-', label=r'$\mathrm{exp}:B^r$')
+        ax.plot(x_traj, By_exp_cyl,        'r-', label=r'$\mathrm{exp}:B^y$')
+        ax.plot(x_traj, Bphi_exp,          'g-', label=r'$\mathrm{exp}:B^\varphi$')
+
+        # --- Datos ajustados (líneas discontinuas más gruesas) ---
+        ax.plot(x_traj, B_vector,          'k--', linewidth=2.0, label=r'$\mathrm{fit}:|\mathbf{B}|$')
+        ax.plot(x_traj, Br_vector,         'b--', linewidth=2.0, label=r'$\mathrm{fit}:B^r$')
+        ax.plot(x_traj, By_vector,         'r--', linewidth=2.0, label=r'$\mathrm{fit}:B^y$')
+        ax.plot(x_traj, Bphi_vector,       'g--', linewidth=2.0, label=r'$\mathrm{fit}:B^\varphi$')
+
+        # Etiquetas y ajustes
+        ax.set_xlabel("Radial distance [km]")
+        ax.set_ylabel("Magnetic Field [nT]")
+        ax.set_title("Experimental vs Fitted Magnetic Field in Cylindrical Coordinates")
+        ax.grid(True)
+        ax.legend(loc='upper right', ncol=2, fontsize='small')
 
         plt.tight_layout()
         st.pyplot(fig)
@@ -2153,6 +2192,10 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         else:
             theta_x = np.pi/2 if vector_director[2] > 0 else -np.pi/2
         theta_x_deg = np.degrees(theta_x)
+        if theta_x_deg > 90:
+            theta_x_deg -= 180
+        elif theta_x_deg < -90:
+            theta_x_deg += 180
 
         if vector_director[1] != 0:
             tan_phi0 = -vector_director[0] * np.cos(theta_x) / vector_director[1]
@@ -2477,11 +2520,32 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             '''
         st.components.v1.html(html_video, height=600)
 
+        # ———————————————————————————————
+        # 12.A) Print CME speeds at r0, r1, r2 and r3
+        # ———————————————————————————————
+
+        # Convert to km and km/s
+        r_full_km = r_full / 1e3
+        v_full_kms = v_full / 1e3
+
+        # Key distances (in metres)
+        key_points = {
+            "r₀ (2.5 Rₛ)":               r0,
+            f"r₁ (satellite at {distance:.2f} AU)": r1,
+            "r₂ (1 AU)":                 r2,
+            "r₃ (1.524 AU)":             r3
+        }
+
+        st.subheader("CME Speed at Key Distances")
+        for label, r_m in key_points.items():
+            # interpolate v_full (m/s) at r_m, then convert to km/s
+            v_kms = np.interp(r_m, r_full, v_full) / 1e3
+            st.markdown(f"- **Speed at {label}:** {v_kms:.2f} km/s")
 
 
 
         # ----------------------------------------------------------------------------------
-        # 12) Solar Wind and Propagation along the Interplanetary Medium
+        # 12B) Solar Wind and Propagation along the Interplanetary Medium
         # ----------------------------------------------------------------------------------
         st.subheader("12) Velocity profile along the Interplanetary Medium")
         
@@ -2500,6 +2564,8 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         ax.legend()
         ax.set_title('Velocity Profile of the CME and Solar Wind')
         st.pyplot(fig)
+
+
 
         # ----------------------------------------------------------------------------------
         # 13) 3D Plot of the CME
