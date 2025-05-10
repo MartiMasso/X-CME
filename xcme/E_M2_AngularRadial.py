@@ -26,6 +26,9 @@ import astropy.units as u
 from sunpy.coordinates import HeliocentricEarthEcliptic, get_horizons_coord, get_body_heliographic_stonyhurst
 from sunpy.time import parse_time
 
+from astropy.time import Time
+from astropy.coordinates import get_body_barycentric, SkyCoord, HeliocentricTrueEcliptic
+
 
 
 def set_axes_equal(ax):
@@ -61,10 +64,14 @@ def elliptical_coords(x, y, xc, yc, a, b, theta):
     # alpha = np.mod(alpha, 2*np.pi)
     return r, alpha
 
+SHOW_PLOTS = False
+SHOW_ANIMATION = False
+
+
 # Function to compute the fitting (with cache)
 st.cache_data.clear()
 @st.cache_data
-def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_date,  mission,  N_iter, n_frames):
+def fit_M2_AngularRadial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, initial_date, final_date,  mission,  N_iter, n_frames):
 
     coordinate_system = identify_coordinate_system(data)
 
@@ -1108,11 +1115,15 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
         st.header("Flux Rope Fitting")
+        st.markdown("---")
 
         # ----------------------------------------------------------------------------------
         # Plot 1) Oriented Flux Rope and intersection with plane y = 0
         # ----------------------------------------------------------------------------------
-        st.subheader("1) Geometry of the fitted Flux Rope")
+        if SHOW_PLOTS:
+            st.subheader("1) Geometry of the fitted Flux Rope")
+        else:
+            st.subheader("Geometry of the fitted Flux Rope")
 
         # Calcular Z_max, Z_min y sus correspondientes x
         Z_max = np.max(Z_ellipse_scaled)
@@ -1204,645 +1215,649 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # ----------------------------------------------------------------------------------
         # Plot 2) Plot 2: 3D Representation
         # ----------------------------------------------------------------------------------
-        st.subheader("2) 3D Representation of the Flux Rope")
+        if SHOW_PLOTS:
+            st.subheader("2) 3D Representation of the Flux Rope")
 
-        # Create a Plotly figure
-        fig = go.Figure()
+            # Create a Plotly figure
+            fig = go.Figure()
 
-        # 1. Surface of the cylinder
-        fig.add_trace(go.Surface(
-            x=X_rot_scaled,
-            y=Y_rot_scaled,
-            z=Z_rot_scaled,
-            colorscale='Blues',
-            opacity=0.4,
-            showscale=False,
-            name="Cylinder"
-        ))
+            # 1. Surface of the cylinder
+            fig.add_trace(go.Surface(
+                x=X_rot_scaled,
+                y=Y_rot_scaled,
+                z=Z_rot_scaled,
+                colorscale='Blues',
+                opacity=0.4,
+                showscale=False,
+                name="Cylinder"
+            ))
 
-        # 2. Rescaled Ellipse
-        fig.add_trace(go.Scatter3d(
-            x=X_ellipse_scaled,
-            y=np.zeros_like(X_ellipse_scaled),
-            z=Z_ellipse_scaled,
-            mode='lines',
-            line=dict(color='red', width=2),
-            name="Rescaled Ellipse"
-        ))
+            # 2. Rescaled Ellipse
+            fig.add_trace(go.Scatter3d(
+                x=X_ellipse_scaled,
+                y=np.zeros_like(X_ellipse_scaled),
+                z=Z_ellipse_scaled,
+                mode='lines',
+                line=dict(color='red', width=2),
+                name="Rescaled Ellipse"
+            ))
 
-        # 3. Rescaled Intersection points
-        fig.add_trace(go.Scatter3d(
-            x=X_intersections_scaled,
-            y=np.zeros_like(X_intersections_scaled),
-            z=Z_intersections_scaled,
-            mode='markers',
-            marker=dict(size=5, color='red'),
-            name="Rescaled Intersection"
-        ))
+            # 3. Rescaled Intersection points
+            fig.add_trace(go.Scatter3d(
+                x=X_intersections_scaled,
+                y=np.zeros_like(X_intersections_scaled),
+                z=Z_intersections_scaled,
+                mode='markers',
+                marker=dict(size=5, color='red'),
+                name="Rescaled Intersection"
+            ))
 
-        # 4. Gray plane (X-Z plane at y=0)
-        x_plane = np.linspace(- a_local * 1.5, a_local * 1.5, 10)
-        z_plane = np.linspace(-a_local * 1.5, a_local * 1.5, 10)
-        X_plane, Z_plane = np.meshgrid(x_plane, z_plane)
-        Y_plane = np.zeros((10, 10))
-        fig.add_trace(go.Surface(
-            x=X_plane,
-            y=Y_plane,
-            z=Z_plane,
-            colorscale='Greys',
-            opacity=0.2,
-            showscale=False,
-            name="Gray Plane"
-        ))
+            # 4. Gray plane (X-Z plane at y=0)
+            x_plane = np.linspace(- a_local * 1.5, a_local * 1.5, 10)
+            z_plane = np.linspace(-a_local * 1.5, a_local * 1.5, 10)
+            X_plane, Z_plane = np.meshgrid(x_plane, z_plane)
+            Y_plane = np.zeros((10, 10))
+            fig.add_trace(go.Surface(
+                x=X_plane,
+                y=Y_plane,
+                z=Z_plane,
+                colorscale='Greys',
+                opacity=0.2,
+                showscale=False,
+                name="Gray Plane"
+            ))
 
-        # 5. Intersection Line
-        fig.add_trace(go.Scatter3d(
-            x=[x1_scaled, x2_scaled],
-            y=[0, 0],
-            z=[z_cut_scaled, z_cut_scaled],
-            mode='lines',
-            line=dict(color='blue', width=4),
-            name="Intersection Line"
-        ))
+            # 5. Intersection Line
+            fig.add_trace(go.Scatter3d(
+                x=[x1_scaled, x2_scaled],
+                y=[0, 0],
+                z=[z_cut_scaled, z_cut_scaled],
+                mode='lines',
+                line=dict(color='blue', width=4),
+                name="Intersection Line"
+            ))
 
-        # 6. Extended Dashed Line
-        x_extended = np.linspace(-a_local * 1.0, a_local * 1.0, 100)
-        z_extended = np.full_like(x_extended, z_cut_scaled)
-        fig.add_trace(go.Scatter3d(
-            x=x_extended,
-            y=np.zeros_like(x_extended),
-            z=z_extended,
-            mode='lines',
-            line=dict(color='black', width=3, dash='dash'),
-            name="Extended Dashed Line"
-        ))
+            # 6. Extended Dashed Line
+            x_extended = np.linspace(-a_local * 1.0, a_local * 1.0, 100)
+            z_extended = np.full_like(x_extended, z_cut_scaled)
+            fig.add_trace(go.Scatter3d(
+                x=x_extended,
+                y=np.zeros_like(x_extended),
+                z=z_extended,
+                mode='lines',
+                line=dict(color='black', width=3, dash='dash'),
+                name="Extended Dashed Line"
+            ))
 
-        # 7. Projected Ellipse
-        fig.add_trace(go.Scatter3d(
-            x=X_proj_ellipse,
-            y=Y_proj_ellipse,
-            z=Z_proj_ellipse,
-            mode='lines',
-            line=dict(color='green', width=2),
-            name="Projected Ellipse"
-        ))
+            # 7. Projected Ellipse
+            fig.add_trace(go.Scatter3d(
+                x=X_proj_ellipse,
+                y=Y_proj_ellipse,
+                z=Z_proj_ellipse,
+                mode='lines',
+                line=dict(color='green', width=2),
+                name="Projected Ellipse"
+            ))
 
-        # 8. Projected Intersection points
-        fig.add_trace(go.Scatter3d(
-            x=X_proj_inter,
-            y=Y_proj_inter,
-            z=Z_proj_inter,
-            mode='markers',
-            marker=dict(size=5, color='green'),
-            name="Projected Intersection"
-        ))
+            # 8. Projected Intersection points
+            fig.add_trace(go.Scatter3d(
+                x=X_proj_inter,
+                y=Y_proj_inter,
+                z=Z_proj_inter,
+                mode='markers',
+                marker=dict(size=5, color='green'),
+                name="Projected Intersection"
+            ))
 
-        # 9. Projected Trajectory
-        fig.add_trace(go.Scatter3d(
-            x=X_proj_traj,
-            y=Y_proj_traj,
-            z=Z_proj_traj,
-            mode='lines',
-            line=dict(color='magenta', width=4),
-            name="Projected Trajectory"
-        ))
+            # 9. Projected Trajectory
+            fig.add_trace(go.Scatter3d(
+                x=X_proj_traj,
+                y=Y_proj_traj,
+                z=Z_proj_traj,
+                mode='lines',
+                line=dict(color='magenta', width=4),
+                name="Projected Trajectory"
+            ))
 
-        # 10. Transverse Plane
-        # Center of the square (point on the cylinder axis)
-        center = np.array([0, 0, d / axis_cylinder_norm[2]])  # Adjust based on your axis and d
+            # 10. Transverse Plane
+            # Center of the square (point on the cylinder axis)
+            center = np.array([0, 0, d / axis_cylinder_norm[2]])  # Adjust based on your axis and d
 
-        # Find two orthogonal vectors in the plane perpendicular to axis_cylinder_norm
-        norm = np.array(axis_cylinder_norm)
-        # Choose an arbitrary vector not parallel to norm
-        if abs(norm[0]) > abs(norm[2]):
-            u = np.cross(norm, [0, 0, 1])  # Cross product with [0,0,1]
-        else:
-            u = np.cross(norm, [1, 0, 0])  # Cross product with [1,0,0]
-        u = u / np.linalg.norm(u)  # Normalize
-        v = np.cross(norm, u)  # Second vector perpendicular to norm and u
-        v = v / np.linalg.norm(v)  # Normalize
+            # Find two orthogonal vectors in the plane perpendicular to axis_cylinder_norm
+            norm = np.array(axis_cylinder_norm)
+            # Choose an arbitrary vector not parallel to norm
+            if abs(norm[0]) > abs(norm[2]):
+                u_vec = np.cross(norm, [0, 0, 1])
+            else:
+                u_vec = np.cross(norm, [1, 0, 0])
+            u_vec = u_vec / np.linalg.norm(u_vec)
 
-        # Define the square's corners in the plane
-        s = 3 * a_local / 2  # Half the side length
-        t = np.linspace(-s, s, 10)  # Grid points
-        T1, T2 = np.meshgrid(t, t)
-        # Parametric equation: center + t1*u + t2*v
-        X_trans = center[0] + T1 * u[0] + T2 * v[0]
-        Y_trans = center[1] + T1 * u[1] + T2 * v[1]
-        Z_trans = center[2] + T1 * u[2] + T2 * v[2]
+            v_vec = np.cross(norm, u_vec)
+            v_vec = v_vec / np.linalg.norm(v_vec)
 
-        fig.add_trace(go.Surface(
-            x=X_trans,
-            y=Y_trans,
-            z=Z_trans,
-            colorscale='YlOrBr',
-            opacity=0.2,
-            showscale=False,
-            name="Transverse Plane"
-        ))
+            # 2) Define los vértices de un cuadrado centrado en 'center'
+            s = 3 * a_local / 2             # mitad del lado
+            t = np.linspace(-s, s, 10)      # puntos de la malla
+            T1, T2 = np.meshgrid(t, t)
 
-        # Update layout for better visualization
-        fig.update_layout(
-            scene=dict(
-                xaxis_title="X",
-                yaxis_title="Y",
-                zaxis_title="Z",
-                aspectmode='data',  # Ensures equal aspect ratio
-            ),
-            title="Cylinder with Cut, Projection, and Trajectory",
-            showlegend=True,
-            height=800
-        )
+            # 3) Ecuación paramétrica: center + t1 * u_vec + t2 * v_vec
+            X_trans = center[0] + T1 * u_vec[0] + T2 * v_vec[0]
+            Y_trans = center[1] + T1 * u_vec[1] + T2 * v_vec[1]
+            Z_trans = center[2] + T1 * u_vec[2] + T2 * v_vec[2]
 
-        # Display the interactive plot in Streamlit
-        st.plotly_chart(fig, use_container_width=True)
+            fig.add_trace(go.Surface(
+                x=X_trans,
+                y=Y_trans,
+                z=Z_trans,
+                colorscale='YlOrBr',
+                opacity=0.2,
+                showscale=False,
+                name="Transverse Plane"
+            ))
+
+            # Update layout for better visualization
+            fig.update_layout(
+                scene=dict(
+                    xaxis_title="X",
+                    yaxis_title="Y",
+                    zaxis_title="Z",
+                    aspectmode='data',  # Ensures equal aspect ratio
+                ),
+                title="Cylinder with Cut, Projection, and Trajectory",
+                showlegend=True,
+                height=800
+            )
+
+            # Display the interactive plot in Streamlit
+            st.plotly_chart(fig, use_container_width=True)
 
 
         # ----------------------------------------------------------------------------------
         # Plot 3) Cross section and trajectory inside
         # ----------------------------------------------------------------------------------
+        if SHOW_PLOTS:
 
-        st.subheader("3) Cross section and trajectory inside")
-        
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-
-        # LEFT SUBPLOT: original local coords
-        # ------------------------------------------------------------------------------
-        ax1.plot(x_ellipse_local, y_ellipse_local, 'r-', label="Elliptical Section (Local)")
-        ax1.plot(x_local, y_local, 'b-', linewidth=2, label="Projected Trajectory")
-        ax1.scatter(x_inter_local, y_inter_local, color='blue', s=50, label="Intersection Points")
-
-        # Dashed chords
-        ax1.plot(h_line_local[:, 0], h_line_local[:, 1], 'k--', linewidth=1)
-        ax1.plot(v_line_local[:, 0], v_line_local[:, 1], 'k--', linewidth=1)
-
-        # Capture print output for the left subplot angles
-        left_angles = []
-        for i, (xi, yi) in enumerate(zip(x_inter_local, y_inter_local)):
-            # Grey line from center to intersection
-            if i == 0:
-                ax1.plot([0, xi], [0, yi], color='grey', linestyle='-', linewidth=1,
-                        label="Center to Intersection")
-            else:
-                ax1.plot([0, xi], [0, yi], color='grey', linestyle='-', linewidth=1)
+            st.subheader("3) Cross section and trajectory inside")
             
-            # Angle from +X axis (local coords)
-            angle_deg_left = np.degrees(np.arctan2(yi, xi)) % 360
-            left_angles.append(angle_deg_left)
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+            # LEFT SUBPLOT: original local coords
+            # ------------------------------------------------------------------------------
+            ax1.plot(x_ellipse_local, y_ellipse_local, 'r-', label="Elliptical Section (Local)")
+            ax1.plot(x_local, y_local, 'b-', linewidth=2, label="Projected Trajectory")
+            ax1.scatter(x_inter_local, y_inter_local, color='blue', s=50, label="Intersection Points")
+
+            # Dashed chords
+            ax1.plot(h_line_local[:, 0], h_line_local[:, 1], 'k--', linewidth=1)
+            ax1.plot(v_line_local[:, 0], v_line_local[:, 1], 'k--', linewidth=1)
+
+            # Capture print output for the left subplot angles
+            left_angles = []
+            for i, (xi, yi) in enumerate(zip(x_inter_local, y_inter_local)):
+                # Grey line from center to intersection
+                if i == 0:
+                    ax1.plot([0, xi], [0, yi], color='grey', linestyle='-', linewidth=1,
+                            label="Center to Intersection")
+                else:
+                    ax1.plot([0, xi], [0, yi], color='grey', linestyle='-', linewidth=1)
+                
+                # Angle from +X axis (local coords)
+                angle_deg_left = np.degrees(np.arctan2(yi, xi)) % 360
+                left_angles.append(angle_deg_left)
+                
+                # Arc from 0 deg up to angle_deg_left
+                r_arc = 0.1 * np.sqrt(xi**2 + yi**2)  # radius ~10% of the line length
+                arc_patch_left = Arc(
+                    (0, 0), 2*r_arc, 2*r_arc,
+                    angle=0,
+                    theta1=0,
+                    theta2=angle_deg_left,
+                    color='grey', linewidth=1
+                )
+                ax1.add_patch(arc_patch_left)
+                
+                # Label near the midpoint of the arc
+                theta_mid = np.radians(0.5 * angle_deg_left)
+                rx = 1.15 * r_arc * np.cos(theta_mid)
+                ry = 1.15 * r_arc * np.sin(theta_mid)
+                ax1.text(rx, ry, f"{angle_deg_left:.1f}°", color='black', fontsize=9)
+
+            # --- Add labels for the ellipse's major and minor axes using scientific notation ---
+            ax1.text(a_local, 0, f"  a = {a_local:.2e}", color='black', fontsize=10,
+                    horizontalalignment='left', verticalalignment='center')
+            ax1.text(0, b_local, f"  b = {b_local:.2e}", color='black', fontsize=10,
+                    horizontalalignment='center', verticalalignment='bottom')
+
+            ax1.set_title("Elliptical Section in Local Coordinates")
+            ax1.set_xlabel("Local X [km]")
+            ax1.set_ylabel("Local Y [km]")
+            ax1.grid(True)
+            ax1.axis('equal')
+            ax1.legend()
+
+            # RIGHT SUBPLOT: rotated ellipse + horizontal trajectory
+            # ------------------------------------------------------------------------------
+            ax2.plot(x_ellipse_rotated, y_ellipse_rotated, 'r-', label="Rotated Ellipse")
+            ax2.plot(x_traj_rotated, y_traj_rotated, 'b-', linewidth=2, label="Horizontal Trajectory")
+            ax2.scatter(x_inter_rotated, y_inter_rotated, color='blue', s=50, label="Intersection Points")
+
+            # Dashed chords
+            ax2.plot(h_line_rotated[:, 0], h_line_rotated[:, 1], 'k--', linewidth=1)
+            ax2.plot(v_line_rotated[:, 0], v_line_rotated[:, 1], 'k--', linewidth=1)
+
+            for i, (xir, yir) in enumerate(zip(x_inter_rotated, y_inter_rotated)):
+                # Grey line from center to intersection
+                if i == 0:
+                    ax2.plot([0, xir], [0, yir], color='grey', linestyle='-', linewidth=1,
+                            label="Center to Intersection")
+                else:
+                    ax2.plot([0, xir], [0, yir], color='grey', linestyle='-', linewidth=1)
+                
+                # Angle in the rotated frame for the intersection
+                angle_deg_right = np.degrees(np.arctan2(yir, xir)) % 360
+                
+                # We want an arc from the chord's angle to the intersection line's angle
+                theta_start = chord_angle_right
+                theta_end = angle_deg_right
+                # Ensure the arc goes in the correct direction (counterclockwise)
+                if theta_end < theta_start:
+                    theta_end += 360
+                            
+                # Arc radius ~10% of the intersection line length
+                r_arc = 0.1 * np.sqrt(xir**2 + yir**2)
+                arc_patch_right = Arc(
+                    (0, 0), 2*r_arc, 2*r_arc,
+                    angle=0,
+                    theta1=theta_start,
+                    theta2=theta_end,
+                    color='grey', linewidth=1
+                )
+                ax2.add_patch(arc_patch_right)
+                
+                # Place label near midpoint of that arc
+                theta_mid = 0.5 * (theta_start + theta_end)
+                theta_mid_rad = np.radians(theta_mid)
+                rx = 1.15 * r_arc * np.cos(theta_mid_rad)
+                ry = 1.15 * r_arc * np.sin(theta_mid_rad)
+                
+                # Label with the difference in angles (theta_end - theta_start)
+                arc_span = theta_end - theta_start
+                ax2.text(rx, ry, f"{arc_span:.1f}°", color='black', fontsize=9)
+
+            ax2.set_title("Rotated Ellipse with Horizontal Cut")
+            ax2.set_xlabel("Rotated Local X [km]")
+            ax2.set_ylabel("Rotated Local Y [km]")
+            ax2.grid(True)
+            ax2.axis('equal')
+            ax2.legend()
+
+            plt.tight_layout()
+
+            # Display the plot in Streamlit
+            st.pyplot(fig)
+
+            # Close the figure to free memory
+            plt.close(fig)
+
+            # ----------------------------------------------------------------------------------
+            # Plot 4) Radial and angular values of the trajectory parametrization
+            # ----------------------------------------------------------------------------------
+
+            st.subheader("4) Radial and angular values of the trajectory parametrization")
+
+            # cálculo original
+            r_vals, phi_vals = elliptical_coords(x_local, y_local, xc, zc, a_local, b_local, theta)
+
+            # unwrap para eliminar saltos de 2π
+            phi_vals = np.unwrap(phi_vals)
+
+            # a continuación lo conviertes a grados
+            phi_vals_deg = np.degrees(phi_vals)
+
+
+            # Create a figure with two subplots side by side
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+            # --- Left Subplot: r_vals and phi_vals vs. x_local ---
+            darker_orange = '#e69500'  # Hex code for a darker orange
+            ax1.plot(x_local, r_vals, color=darker_orange, label='r_vals', linewidth=2)
+            ax1.set_xlabel('x_local')
+            ax1.set_ylabel('r_vals', color=darker_orange)
+            ax1.tick_params(axis='y', labelcolor=darker_orange)
+            ax1.grid(True)
+
+            # Create a second y-axis for phi_vals on the left subplot (still purple)
+            ax1_twin = ax1.twinx()
+            ax1_twin.plot(x_local, phi_vals_deg, color='purple', label='phi_vals (degrees)', linewidth=2)
+            ax1_twin.set_ylabel('phi_vals (degrees)', color='purple')
+            ax1_twin.tick_params(axis='y', labelcolor='purple')
+
+            # Add title and legends for the left subplot
+            ax1.set_title('r_vals and phi_vals vs. x_local')
+            ax1.legend(loc='upper left')
+            ax1_twin.legend(loc='upper right')
+
+            # --- Right Subplot: Elliptical Section in Local Coordinates ---
+            ax2.plot(x_ellipse_local, y_ellipse_local, 'r-', label="Elliptical Section (Local)")
+            ax2.plot(x_local, y_local, 'b-', linewidth=2, label="Projected Trajectory")
+            ax2.scatter(x_inter_local, y_inter_local, color='blue', s=50, label="Intersection Points")
+
+            # Dashed chords
+            ax2.plot(h_line_local[:, 0], h_line_local[:, 1], 'k--', linewidth=1)
+            ax2.plot(v_line_local[:, 0], v_line_local[:, 1], 'k--', linewidth=1)
+
+            # Add labels for the ellipse's major and minor axes using scientific notation
+            ax2.text(a_local, 0, f"  a = {a_local:.2e}", color='black', fontsize=10,
+                    horizontalalignment='left', verticalalignment='center')
+            ax2.text(0, b_local, f"  b = {b_local:.2e}", color='black', fontsize=10,
+                    horizontalalignment='center', verticalalignment='bottom')
+
+            # Set title, labels, and other properties for the right subplot
+            ax2.set_title("Elliptical Section in Local Coordinates")
+            ax2.set_xlabel("Local X [km]")
+            ax2.set_ylabel("Local Y [km]")
+            ax2.grid(True)
+            ax2.axis('equal')
+            ax2.legend()
+
+            # Adjust layout to prevent overlap
+            plt.tight_layout()
+
+            # Display the plot in Streamlit
+            st.pyplot(fig)
+
+            # Close the figure to free memory
+            plt.close(fig)
+
+
+            # ----------------------------------------------------------------------------------
+            # Plot 5) In-situ data in Local Cartesian coordinates vs original GSE exp
+            # ----------------------------------------------------------------------------------
+
+            st.subheader("5) In-Situ Local and GSE Data")
+
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+
+            # --- Plot GSE magnetic field components in local Cartesian coordinates ---
+            ax1.plot(x_traj_GSE, B_GSE_exp_tot, 'k-', label=r'$|\mathbf{B}|$')
+            ax1.plot(x_traj_GSE, Bx_GSE_exp, 'b-', label=r'$B_x$')
+            ax1.plot(x_traj_GSE, By_GSE_exp, 'r-', label=r'$B_y$')
+            ax1.plot(x_traj_GSE, Bz_GSE_exp, 'g-', label=r'$B_z$')
+            ax1.set_xlabel("X-axis GSE")
+            ax1.set_ylabel("Magnetic field value [nT]")
+            ax1.set_title("GSE Experimental Componentes in the GSE Coordinates")
+            ax1.legend()
+            ax1.grid(True)
+
+            # --- Plot LOCAL magnetic field components in GSE coordinates ---
+            ax2.plot(x_traj, Bx_Local_exp, 'b-', label=r"$B_x^L$")
+            ax2.plot(x_traj, By_Local_exp, 'r-', label=r"$B_y^L$")
+            ax2.plot(x_traj, Bz_Local_exp, 'g-', label=r"$B_z^L$")
+            ax2.plot(x_traj, B_Local_total_exp, 'k--', label=r"$|\mathbf{B}|$")
+            ax2.set_xlabel("X-axis Local")
+            ax2.set_ylabel("Magnetic field value [nT]")
+            ax2.set_title("Local-Cartesian Experimental Magnetic Field Components")
+            ax2.legend()
+            ax2.grid(True)
+
+            st.pyplot(fig)
             
-            # Arc from 0 deg up to angle_deg_left
-            r_arc = 0.1 * np.sqrt(xi**2 + yi**2)  # radius ~10% of the line length
-            arc_patch_left = Arc(
-                (0, 0), 2*r_arc, 2*r_arc,
-                angle=0,
-                theta1=0,
-                theta2=angle_deg_left,
-                color='grey', linewidth=1
+            # ----------------------------------------------------------------------------------
+            # Plot 6) In-situ Cylindrical Components and fitted model
+            # ----------------------------------------------------------------------------------
+
+            st.subheader("6) In-Situ and Fitted Cylindrical Components")
+
+            # Crear un único plot
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            # --- Datos exportados (líneas continuas) ---
+            ax.plot(x_traj, B_Local_total_exp,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
+            ax.plot(x_traj, Br_exp,            'b-', label=r'$\mathrm{exp}:B^r$')
+            ax.plot(x_traj, By_exp_cyl,        'r-', label=r'$\mathrm{exp}:B^y$')
+            ax.plot(x_traj, Bphi_exp,          'g-', label=r'$\mathrm{exp}:B^\varphi$')
+
+            # --- Datos ajustados (líneas discontinuas más gruesas) ---
+            ax.plot(x_traj, B_vector,          'k--', linewidth=2.0, label=r'$\mathrm{fit}:|\mathbf{B}|$')
+            ax.plot(x_traj, Br_vector,         'b--', linewidth=2.0, label=r'$\mathrm{fit}:B^r$')
+            ax.plot(x_traj, By_vector,         'r--', linewidth=2.0, label=r'$\mathrm{fit}:B^y$')
+            ax.plot(x_traj, Bphi_vector,       'g--', linewidth=2.0, label=r'$\mathrm{fit}:B^\varphi$')
+
+            # Etiquetas y ajustes
+            ax.set_xlabel("Radial distance [km]")
+            ax.set_ylabel("Magnetic Field [nT]")
+            ax.set_title("Experimental vs Fitted Magnetic Field in Cylindrical Coordinates")
+            ax.grid(True)
+            ax.legend(loc='upper right', ncol=2, fontsize='small')
+
+            plt.tight_layout()
+            st.pyplot(fig)
+
+            # ----------------------------------------------------------------------------------
+            # Plot 7) Magnetic field representation in the cross section
+            # ----------------------------------------------------------------------------------
+            def Br_model_fitted(r, alpha):
+                """
+                Radial component (always zero)
+                """
+                return np.zeros_like(r)
+
+            def By_model_fitted(r, alpha):
+                """
+                Y component with quadratic radial dependence and oscillatory terms using fitted parameters
+                """
+                r = r * a_local * 10**3
+                radial_part = A_By * r**n_by
+                oscillatory_part = B_By + C_By * np.sin(alpha - alpha0_By) + D_By * np.cos(alpha - alpha0_By)
+                return radial_part * oscillatory_part + E_By
+
+            def Bphi_model_fitted(r, alpha):
+                """
+                Azimuthal component with cubic polynomial dependence using fitted parameters
+                """
+                r = r * a_local * 10**3
+                return K1_Bphi * r + K2_Bphi * r**2 + K3_Bphi * r**3
+
+            # --- Crear la malla para la sección transversal ---
+            Npt = 300
+            x_ellipse_rotated = x_ellipse_rotated * 10**3
+            y_ellipse_rotated = y_ellipse_rotated * 10**3
+            x_min = min(x_ellipse_rotated) - 0.1 * (max(x_ellipse_rotated) - min(x_ellipse_rotated))
+            x_max = max(x_ellipse_rotated) + 0.1 * (max(x_ellipse_rotated) - min(x_ellipse_rotated))
+            y_min = min(y_ellipse_rotated) - 0.1 * (max(y_ellipse_rotated) - min(y_ellipse_rotated))
+            y_max = max(y_ellipse_rotated) + 0.1 * (max(y_ellipse_rotated) - min(y_ellipse_rotated))
+            X_grid, Y_grid = np.meshgrid(np.linspace(x_min, x_max, Npt), np.linspace(y_min, y_max, Npt))
+
+            # --- Parámetros de la elipse rotada ---
+            xc = np.mean(x_ellipse_rotated)
+            yc = np.mean(y_ellipse_rotated)
+
+            # Estimar semiejes y ángulo de rotación
+            ellipse_local_2d_rotated = np.column_stack((x_ellipse_rotated - xc, y_ellipse_rotated - yc))
+            ellipse_model = EllipseModel()
+            ellipse_model.estimate(ellipse_local_2d_rotated)
+            _, _, a_ellipse, b_ellipse, theta_ellipse = ellipse_model.params
+            delta = b_ellipse / a_ellipse
+            a_ell = 1  # Escala normalizada
+
+            # --- Calcular coordenadas elípticas ---
+            r_grid, alpha_grid = elliptical_coords(X_grid, Y_grid, xc, yc, a_ellipse, b_ellipse, theta_ellipse)
+
+            # --- Evaluate fitted magnetic field components on the mesh ---
+            Br_vals_fitted   = Br_model_fitted(r_grid, alpha_grid)
+            By_vals_fitted   = By_model_fitted(r_grid, alpha_grid)
+            Bphi_vals_fitted = Bphi_model_fitted(r_grid, alpha_grid)
+
+            # --- Metric components on the 2D mesh ---
+            grr_corrected = a_ell**2 * (np.cos(alpha_grid)**2 + delta**2 * np.sin(alpha_grid)**2)
+            gyy_corrected = np.ones_like(r_grid)
+            gphiphi_corrected = a_ell**2 * r_grid**2 * (np.sin(alpha_grid)**2 + delta**2 * np.cos(alpha_grid)**2)
+            grphi_corrected = a_ell**2 * r_grid * np.sin(alpha_grid) * np.cos(alpha_grid) * (delta**2 - 1)
+
+
+            # --- Total magnitude of the fitted magnetic field on the mesh ---
+            B_total_fitted = np.sqrt(
+                grr_corrected * Br_vals_fitted**2 +
+                gyy_corrected * By_vals_fitted**2 +
+                gphiphi_corrected * Bphi_vals_fitted**2 +
+                2 * grphi_corrected * Br_vals_fitted * Bphi_vals_fitted
             )
-            ax1.add_patch(arc_patch_left)
+
+            # Calculamos sqrt(gphiphi) sobre la malla
+            sqrt_gphiphi = np.sqrt(gphiphi_corrected)
+
+            # Aplicamos la métrica a la componente Bphi
+            Bphi_metric_vals = Bphi_vals_fitted * sqrt_gphiphi
+
+
+            # --- Mask points outside the ellipse (r > 1) ---
+            mask = (r_grid > 1.0)
+            Br_masked_fitted   = np.ma.array(Br_vals_fitted,   mask=mask)
+            By_masked_fitted   = np.ma.array(By_vals_fitted,   mask=mask)
+            Bphi_masked_fitted = np.ma.array(Bphi_metric_vals, mask=mask)
+            Btotal_masked_fitted = np.ma.array(B_total_fitted, mask=mask)
+
+            # --- 2D contour plots in Streamlit (2x2) ---
+            st.subheader("7) Magnetic Field Cross Section (Fitted)")
+
+            fig, axs = plt.subplots(2, 2, figsize=(14, 12))  # 2 filas, 2 columnas
+            fields_fitted = [Br_masked_fitted, By_masked_fitted, Bphi_masked_fitted, Btotal_masked_fitted]
+            titles = [r"$B_r$", r"$B_y$", r"$B_{\phi}$", r"$|\mathbf{B}|$"]
+
+            x_traj_rotated, y_traj_rotated = x_traj_rotated * 10**3, y_traj_rotated * 10**3
             
-            # Label near the midpoint of the arc
-            theta_mid = np.radians(0.5 * angle_deg_left)
-            rx = 1.15 * r_arc * np.cos(theta_mid)
-            ry = 1.15 * r_arc * np.sin(theta_mid)
-            ax1.text(rx, ry, f"{angle_deg_left:.1f}°", color='black', fontsize=9)
+            # Flatten axs for easy iteration
+            axs_flat = axs.flatten()
 
-        # --- Add labels for the ellipse's major and minor axes using scientific notation ---
-        ax1.text(a_local, 0, f"  a = {a_local:.2e}", color='black', fontsize=10,
-                horizontalalignment='left', verticalalignment='center')
-        ax1.text(0, b_local, f"  b = {b_local:.2e}", color='black', fontsize=10,
-                horizontalalignment='center', verticalalignment='bottom')
+            # Define a consistent colormap
+            cmap = plt.get_cmap('viridis')  # Low values purple, high values yellow
 
-        ax1.set_title("Elliptical Section in Local Coordinates")
-        ax1.set_xlabel("Local X [km]")
-        ax1.set_ylabel("Local Y [km]")
-        ax1.grid(True)
-        ax1.axis('equal')
-        ax1.legend()
+            for ax, field, title in zip(axs_flat, fields_fitted, titles):
+                # Plot the ellipse boundary and trajectory first
+                ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2)
+                ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label="Trajectory")
+                ax.set_aspect('equal', 'box')
+                ax.set_xlabel("X local rotated")
+                ax.set_ylabel("Y local rotated")
+                ax.set_title(f"Fitted: {title}", fontsize=15)
 
-        # RIGHT SUBPLOT: rotated ellipse + horizontal trajectory
-        # ------------------------------------------------------------------------------
-        ax2.plot(x_ellipse_rotated, y_ellipse_rotated, 'r-', label="Rotated Ellipse")
-        ax2.plot(x_traj_rotated, y_traj_rotated, 'b-', linewidth=2, label="Horizontal Trajectory")
-        ax2.scatter(x_inter_rotated, y_inter_rotated, color='blue', s=50, label="Intersection Points")
+                # Check if the field is fully masked or constant zero (e.g., Br)
+                if np.all(field.mask) or np.all(field[~field.mask] == 0):
+                    # For zero fields like Br, display text and reserve colorbar space
+                    ax.text(0.5, 0.5, f"{title} = 0", transform=ax.transAxes, ha='center', va='center', fontsize=12)
+                    # Create a dummy contour to reserve colorbar space
+                    dummy_data = np.zeros_like(X_grid)
+                    ctf = ax.contourf(X_grid, Y_grid, dummy_data, levels=[-1e-30, 1e-30], cmap=cmap, alpha=0)
+                    # Add an invisible colorbar to maintain layout
+                    cbar = fig.colorbar(ctf, ax=ax, shrink=0.9)
+                    cbar.ax.set_visible(False)
+                    ax.legend()
+                    continue
 
-        # Dashed chords
-        ax2.plot(h_line_rotated[:, 0], h_line_rotated[:, 1], 'k--', linewidth=1)
-        ax2.plot(v_line_rotated[:, 0], v_line_rotated[:, 1], 'k--', linewidth=1)
-
-        for i, (xir, yir) in enumerate(zip(x_inter_rotated, y_inter_rotated)):
-            # Grey line from center to intersection
-            if i == 0:
-                ax2.plot([0, xir], [0, yir], color='grey', linestyle='-', linewidth=1,
-                        label="Center to Intersection")
-            else:
-                ax2.plot([0, xir], [0, yir], color='grey', linestyle='-', linewidth=1)
-            
-            # Angle in the rotated frame for the intersection
-            angle_deg_right = np.degrees(np.arctan2(yir, xir)) % 360
-            
-            # We want an arc from the chord's angle to the intersection line's angle
-            theta_start = chord_angle_right
-            theta_end = angle_deg_right
-            # Ensure the arc goes in the correct direction (counterclockwise)
-            if theta_end < theta_start:
-                theta_end += 360
-                        
-            # Arc radius ~10% of the intersection line length
-            r_arc = 0.1 * np.sqrt(xir**2 + yir**2)
-            arc_patch_right = Arc(
-                (0, 0), 2*r_arc, 2*r_arc,
-                angle=0,
-                theta1=theta_start,
-                theta2=theta_end,
-                color='grey', linewidth=1
-            )
-            ax2.add_patch(arc_patch_right)
-            
-            # Place label near midpoint of that arc
-            theta_mid = 0.5 * (theta_start + theta_end)
-            theta_mid_rad = np.radians(theta_mid)
-            rx = 1.15 * r_arc * np.cos(theta_mid_rad)
-            ry = 1.15 * r_arc * np.sin(theta_mid_rad)
-            
-            # Label with the difference in angles (theta_end - theta_start)
-            arc_span = theta_end - theta_start
-            ax2.text(rx, ry, f"{arc_span:.1f}°", color='black', fontsize=9)
-
-        ax2.set_title("Rotated Ellipse with Horizontal Cut")
-        ax2.set_xlabel("Rotated Local X [km]")
-        ax2.set_ylabel("Rotated Local Y [km]")
-        ax2.grid(True)
-        ax2.axis('equal')
-        ax2.legend()
-
-        plt.tight_layout()
-
-        # Display the plot in Streamlit
-        st.pyplot(fig)
-
-        # Close the figure to free memory
-        plt.close(fig)
-
-        # ----------------------------------------------------------------------------------
-        # Plot 4) Radial and angular values of the trajectory parametrization
-        # ----------------------------------------------------------------------------------
-
-        st.subheader("4) Radial and angular values of the trajectory parametrization")
-
-        # cálculo original
-        r_vals, phi_vals = elliptical_coords(x_local, y_local, xc, zc, a_local, b_local, theta)
-
-        # unwrap para eliminar saltos de 2π
-        phi_vals = np.unwrap(phi_vals)
-
-        # a continuación lo conviertes a grados
-        phi_vals_deg = np.degrees(phi_vals)
-
-
-        # Create a figure with two subplots side by side
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-
-        # --- Left Subplot: r_vals and phi_vals vs. x_local ---
-        darker_orange = '#e69500'  # Hex code for a darker orange
-        ax1.plot(x_local, r_vals, color=darker_orange, label='r_vals', linewidth=2)
-        ax1.set_xlabel('x_local')
-        ax1.set_ylabel('r_vals', color=darker_orange)
-        ax1.tick_params(axis='y', labelcolor=darker_orange)
-        ax1.grid(True)
-
-        # Create a second y-axis for phi_vals on the left subplot (still purple)
-        ax1_twin = ax1.twinx()
-        ax1_twin.plot(x_local, phi_vals_deg, color='purple', label='phi_vals (degrees)', linewidth=2)
-        ax1_twin.set_ylabel('phi_vals (degrees)', color='purple')
-        ax1_twin.tick_params(axis='y', labelcolor='purple')
-
-        # Add title and legends for the left subplot
-        ax1.set_title('r_vals and phi_vals vs. x_local')
-        ax1.legend(loc='upper left')
-        ax1_twin.legend(loc='upper right')
-
-        # --- Right Subplot: Elliptical Section in Local Coordinates ---
-        ax2.plot(x_ellipse_local, y_ellipse_local, 'r-', label="Elliptical Section (Local)")
-        ax2.plot(x_local, y_local, 'b-', linewidth=2, label="Projected Trajectory")
-        ax2.scatter(x_inter_local, y_inter_local, color='blue', s=50, label="Intersection Points")
-
-        # Dashed chords
-        ax2.plot(h_line_local[:, 0], h_line_local[:, 1], 'k--', linewidth=1)
-        ax2.plot(v_line_local[:, 0], v_line_local[:, 1], 'k--', linewidth=1)
-
-        # Add labels for the ellipse's major and minor axes using scientific notation
-        ax2.text(a_local, 0, f"  a = {a_local:.2e}", color='black', fontsize=10,
-                horizontalalignment='left', verticalalignment='center')
-        ax2.text(0, b_local, f"  b = {b_local:.2e}", color='black', fontsize=10,
-                horizontalalignment='center', verticalalignment='bottom')
-
-        # Set title, labels, and other properties for the right subplot
-        ax2.set_title("Elliptical Section in Local Coordinates")
-        ax2.set_xlabel("Local X [km]")
-        ax2.set_ylabel("Local Y [km]")
-        ax2.grid(True)
-        ax2.axis('equal')
-        ax2.legend()
-
-        # Adjust layout to prevent overlap
-        plt.tight_layout()
-
-        # Display the plot in Streamlit
-        st.pyplot(fig)
-
-        # Close the figure to free memory
-        plt.close(fig)
-
-
-        # ----------------------------------------------------------------------------------
-        # Plot 5) In-situ data in Local Cartesian coordinates vs original GSE exp
-        # ----------------------------------------------------------------------------------
-
-        st.subheader("5) In-Situ Local and GSE Data")
-
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
-
-        # --- Plot GSE magnetic field components in local Cartesian coordinates ---
-        ax1.plot(x_traj_GSE, B_GSE_exp_tot, 'k-', label=r'$|\mathbf{B}|$')
-        ax1.plot(x_traj_GSE, Bx_GSE_exp, 'b-', label=r'$B_x$')
-        ax1.plot(x_traj_GSE, By_GSE_exp, 'r-', label=r'$B_y$')
-        ax1.plot(x_traj_GSE, Bz_GSE_exp, 'g-', label=r'$B_z$')
-        ax1.set_xlabel("X-axis GSE")
-        ax1.set_ylabel("Magnetic field value [nT]")
-        ax1.set_title("GSE Experimental Componentes in the GSE Coordinates")
-        ax1.legend()
-        ax1.grid(True)
-
-        # --- Plot LOCAL magnetic field components in GSE coordinates ---
-        ax2.plot(x_traj, Bx_Local_exp, 'b-', label=r"$B_x^L$")
-        ax2.plot(x_traj, By_Local_exp, 'r-', label=r"$B_y^L$")
-        ax2.plot(x_traj, Bz_Local_exp, 'g-', label=r"$B_z^L$")
-        ax2.plot(x_traj, B_Local_total_exp, 'k--', label=r"$|\mathbf{B}|$")
-        ax2.set_xlabel("X-axis Local")
-        ax2.set_ylabel("Magnetic field value [nT]")
-        ax2.set_title("Local-Cartesian Experimental Magnetic Field Components")
-        ax2.legend()
-        ax2.grid(True)
-
-        st.pyplot(fig)
-        
-        # ----------------------------------------------------------------------------------
-        # Plot 6) In-situ Cylindrical Components and fitted model
-        # ----------------------------------------------------------------------------------
-
-        st.subheader("6) In-Situ and Fitted Cylindrical Components")
-
-        # Crear un único plot
-        fig, ax = plt.subplots(figsize=(8, 6))
-
-        # --- Datos exportados (líneas continuas) ---
-        ax.plot(x_traj, B_Local_total_exp,   'k-', label=r'$\mathrm{exp}:|\mathbf{B}|$')
-        ax.plot(x_traj, Br_exp,            'b-', label=r'$\mathrm{exp}:B^r$')
-        ax.plot(x_traj, By_exp_cyl,        'r-', label=r'$\mathrm{exp}:B^y$')
-        ax.plot(x_traj, Bphi_exp,          'g-', label=r'$\mathrm{exp}:B^\varphi$')
-
-        # --- Datos ajustados (líneas discontinuas más gruesas) ---
-        ax.plot(x_traj, B_vector,          'k--', linewidth=2.0, label=r'$\mathrm{fit}:|\mathbf{B}|$')
-        ax.plot(x_traj, Br_vector,         'b--', linewidth=2.0, label=r'$\mathrm{fit}:B^r$')
-        ax.plot(x_traj, By_vector,         'r--', linewidth=2.0, label=r'$\mathrm{fit}:B^y$')
-        ax.plot(x_traj, Bphi_vector,       'g--', linewidth=2.0, label=r'$\mathrm{fit}:B^\varphi$')
-
-        # Etiquetas y ajustes
-        ax.set_xlabel("Radial distance [km]")
-        ax.set_ylabel("Magnetic Field [nT]")
-        ax.set_title("Experimental vs Fitted Magnetic Field in Cylindrical Coordinates")
-        ax.grid(True)
-        ax.legend(loc='upper right', ncol=2, fontsize='small')
-
-        plt.tight_layout()
-        st.pyplot(fig)
-
-        # ----------------------------------------------------------------------------------
-        # Plot 7) Magnetic field representation in the cross section
-        # ----------------------------------------------------------------------------------
-        def Br_model_fitted(r, alpha):
-            """
-            Radial component (always zero)
-            """
-            return np.zeros_like(r)
-
-        def By_model_fitted(r, alpha):
-            """
-            Y component with quadratic radial dependence and oscillatory terms using fitted parameters
-            """
-            r = r * a_local * 10**3
-            radial_part = A_By * r**n_by
-            oscillatory_part = B_By + C_By * np.sin(alpha - alpha0_By) + D_By * np.cos(alpha - alpha0_By)
-            return radial_part * oscillatory_part + E_By
-
-        def Bphi_model_fitted(r, alpha):
-            """
-            Azimuthal component with cubic polynomial dependence using fitted parameters
-            """
-            r = r * a_local * 10**3
-            return K1_Bphi * r + K2_Bphi * r**2 + K3_Bphi * r**3
-
-        # --- Crear la malla para la sección transversal ---
-        Npt = 300
-        x_ellipse_rotated = x_ellipse_rotated * 10**3
-        y_ellipse_rotated = y_ellipse_rotated * 10**3
-        x_min = min(x_ellipse_rotated) - 0.1 * (max(x_ellipse_rotated) - min(x_ellipse_rotated))
-        x_max = max(x_ellipse_rotated) + 0.1 * (max(x_ellipse_rotated) - min(x_ellipse_rotated))
-        y_min = min(y_ellipse_rotated) - 0.1 * (max(y_ellipse_rotated) - min(y_ellipse_rotated))
-        y_max = max(y_ellipse_rotated) + 0.1 * (max(y_ellipse_rotated) - min(y_ellipse_rotated))
-        X_grid, Y_grid = np.meshgrid(np.linspace(x_min, x_max, Npt), np.linspace(y_min, y_max, Npt))
-
-        # --- Parámetros de la elipse rotada ---
-        xc = np.mean(x_ellipse_rotated)
-        yc = np.mean(y_ellipse_rotated)
-
-        # Estimar semiejes y ángulo de rotación
-        ellipse_local_2d_rotated = np.column_stack((x_ellipse_rotated - xc, y_ellipse_rotated - yc))
-        ellipse_model = EllipseModel()
-        ellipse_model.estimate(ellipse_local_2d_rotated)
-        _, _, a_ellipse, b_ellipse, theta_ellipse = ellipse_model.params
-        delta = b_ellipse / a_ellipse
-        a_ell = 1  # Escala normalizada
-
-        # --- Calcular coordenadas elípticas ---
-        r_grid, alpha_grid = elliptical_coords(X_grid, Y_grid, xc, yc, a_ellipse, b_ellipse, theta_ellipse)
-
-        # --- Evaluate fitted magnetic field components on the mesh ---
-        Br_vals_fitted   = Br_model_fitted(r_grid, alpha_grid)
-        By_vals_fitted   = By_model_fitted(r_grid, alpha_grid)
-        Bphi_vals_fitted = Bphi_model_fitted(r_grid, alpha_grid)
-
-        # --- Metric components on the 2D mesh ---
-        grr_corrected = a_ell**2 * (np.cos(alpha_grid)**2 + delta**2 * np.sin(alpha_grid)**2)
-        gyy_corrected = np.ones_like(r_grid)
-        gphiphi_corrected = a_ell**2 * r_grid**2 * (np.sin(alpha_grid)**2 + delta**2 * np.cos(alpha_grid)**2)
-        grphi_corrected = a_ell**2 * r_grid * np.sin(alpha_grid) * np.cos(alpha_grid) * (delta**2 - 1)
-
-
-        # --- Total magnitude of the fitted magnetic field on the mesh ---
-        B_total_fitted = np.sqrt(
-            grr_corrected * Br_vals_fitted**2 +
-            gyy_corrected * By_vals_fitted**2 +
-            gphiphi_corrected * Bphi_vals_fitted**2 +
-            2 * grphi_corrected * Br_vals_fitted * Bphi_vals_fitted
-        )
-
-        # Calculamos sqrt(gphiphi) sobre la malla
-        sqrt_gphiphi = np.sqrt(gphiphi_corrected)
-
-        # Aplicamos la métrica a la componente Bphi
-        Bphi_metric_vals = Bphi_vals_fitted * sqrt_gphiphi
-
-
-        # --- Mask points outside the ellipse (r > 1) ---
-        mask = (r_grid > 1.0)
-        Br_masked_fitted   = np.ma.array(Br_vals_fitted,   mask=mask)
-        By_masked_fitted   = np.ma.array(By_vals_fitted,   mask=mask)
-        Bphi_masked_fitted = np.ma.array(Bphi_metric_vals, mask=mask)
-        Btotal_masked_fitted = np.ma.array(B_total_fitted, mask=mask)
-
-        # --- 2D contour plots in Streamlit (2x2) ---
-        st.subheader("7) Magnetic Field Cross Section (Fitted)")
-
-        fig, axs = plt.subplots(2, 2, figsize=(14, 12))  # 2 filas, 2 columnas
-        fields_fitted = [Br_masked_fitted, By_masked_fitted, Bphi_masked_fitted, Btotal_masked_fitted]
-        titles = [r"$B_r$", r"$B_y$", r"$B_{\phi}$", r"$|\mathbf{B}|$"]
-
-        x_traj_rotated, y_traj_rotated = x_traj_rotated * 10**3, y_traj_rotated * 10**3
-        
-        # Flatten axs for easy iteration
-        axs_flat = axs.flatten()
-
-        # Define a consistent colormap
-        cmap = plt.get_cmap('viridis')  # Low values purple, high values yellow
-
-        for ax, field, title in zip(axs_flat, fields_fitted, titles):
-            # Plot the ellipse boundary and trajectory first
-            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2)
-            ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label="Trajectory")
-            ax.set_aspect('equal', 'box')
-            ax.set_xlabel("X local rotated")
-            ax.set_ylabel("Y local rotated")
-            ax.set_title(f"Fitted: {title}", fontsize=15)
-
-            # Check if the field is fully masked or constant zero (e.g., Br)
-            if np.all(field.mask) or np.all(field[~field.mask] == 0):
-                # For zero fields like Br, display text and reserve colorbar space
-                ax.text(0.5, 0.5, f"{title} = 0", transform=ax.transAxes, ha='center', va='center', fontsize=12)
-                # Create a dummy contour to reserve colorbar space
-                dummy_data = np.zeros_like(X_grid)
-                ctf = ax.contourf(X_grid, Y_grid, dummy_data, levels=[-1e-30, 1e-30], cmap=cmap, alpha=0)
-                # Add an invisible colorbar to maintain layout
+                # Compute contour plot for non-zero fields (By, Bphi, |B|)
+                ctf = ax.contourf(X_grid, Y_grid, field, 50, cmap=cmap)
+                ax.contour(X_grid, Y_grid, field, 10, colors='k', alpha=0.4)
+                # Add colorbar with default configuration
                 cbar = fig.colorbar(ctf, ax=ax, shrink=0.9)
-                cbar.ax.set_visible(False)
                 ax.legend()
-                continue
 
-            # Compute contour plot for non-zero fields (By, Bphi, |B|)
-            ctf = ax.contourf(X_grid, Y_grid, field, 50, cmap=cmap)
-            ax.contour(X_grid, Y_grid, field, 10, colors='k', alpha=0.4)
-            # Add colorbar with default configuration
-            cbar = fig.colorbar(ctf, ax=ax, shrink=0.9)
-            ax.legend()
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
 
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
+            # Fitted formulas of the magnetic field components
+            # ----------------------------------------------------------------------------------
+            class CustomLatexPrinter(LatexPrinter):
+                def _print_Float(self, expr):
+                    # Valor absoluto del número
+                    abs_expr = abs(float(expr))
+                    if abs_expr == 0:
+                        return "0"
+                    
+                    # Calcular mantissa y exponente
+                    exponent = int(sp.log(abs_expr, 10))
+                    mantissa = expr / (10 ** exponent)
+                    
+                    # Ajustar mantissa para que esté entre 1 y 10
+                    while abs(mantissa) >= 10:
+                        mantissa /= 10
+                        exponent += 1
+                    while abs(mantissa) < 1:
+                        mantissa *= 10
+                        exponent -= 1
+                    
+                    # Formatear mantissa con 4 cifras significativas
+                    mantissa_str = "{:.4f}".format(mantissa).rstrip('0').rstrip('.')
+                    
+                    # Si el exponente está entre -2 y 2, devolver el número original sin notación científica
+                    if -2 <= exponent <= 2:
+                        original_number = expr  # Usar el valor original
+                        return "{:.4f}".format(original_number).rstrip('0').rstrip('.')
+                    
+                    # Para exponentes fuera de [-2, 2], usar notación científica con · y 10^n
+                    return f"{mantissa_str} \\cdot 10^{{{exponent}}}"
 
-        # Fitted formulas of the magnetic field components
-        # ----------------------------------------------------------------------------------
-        class CustomLatexPrinter(LatexPrinter):
-            def _print_Float(self, expr):
-                # Valor absoluto del número
-                abs_expr = abs(float(expr))
-                if abs_expr == 0:
-                    return "0"
-                
-                # Calcular mantissa y exponente
-                exponent = int(sp.log(abs_expr, 10))
-                mantissa = expr / (10 ** exponent)
-                
-                # Ajustar mantissa para que esté entre 1 y 10
-                while abs(mantissa) >= 10:
-                    mantissa /= 10
-                    exponent += 1
-                while abs(mantissa) < 1:
-                    mantissa *= 10
-                    exponent -= 1
-                
-                # Formatear mantissa con 4 cifras significativas
-                mantissa_str = "{:.4f}".format(mantissa).rstrip('0').rstrip('.')
-                
-                # Si el exponente está entre -2 y 2, devolver el número original sin notación científica
-                if -2 <= exponent <= 2:
-                    original_number = expr  # Usar el valor original
-                    return "{:.4f}".format(original_number).rstrip('0').rstrip('.')
-                
-                # Para exponentes fuera de [-2, 2], usar notación científica con · y 10^n
-                return f"{mantissa_str} \\cdot 10^{{{exponent}}}"
+            custom_latex = CustomLatexPrinter()
 
-        custom_latex = CustomLatexPrinter()
+            
+            # Define symbolic expressions with formatted parameters
+            r, phi = sp.symbols('r phi')
+            Br_expr = 0  # Since model_Br returns 0
+            By_expr = (sp.sympify(A_By_rounded) * r**3 * (
+                sp.sympify(B_By_rounded) +
+                sp.sympify(C_By_rounded) * sp.sin(phi - sp.sympify(alpha0_By_rounded)) +
+                sp.sympify(D_By_rounded) * sp.cos(phi - sp.sympify(alpha0_By_rounded))
+            )) + sp.sympify(E_By_rounded)
+            # Adjust Bphi_expr to match the image's order (highest to lowest degree)
+            Bphi_expr = sp.sympify(K3_Bphi_rounded) * r**3 + sp.sympify(K2_Bphi_rounded) * r**2 + sp.sympify(K1_Bphi_rounded) * r
 
-        
-        # Define symbolic expressions with formatted parameters
-        r, phi = sp.symbols('r phi')
-        Br_expr = 0  # Since model_Br returns 0
-        By_expr = (sp.sympify(A_By_rounded) * r**3 * (
-            sp.sympify(B_By_rounded) +
-            sp.sympify(C_By_rounded) * sp.sin(phi - sp.sympify(alpha0_By_rounded)) +
-            sp.sympify(D_By_rounded) * sp.cos(phi - sp.sympify(alpha0_By_rounded))
-        )) + sp.sympify(E_By_rounded)
-        # Adjust Bphi_expr to match the image's order (highest to lowest degree)
-        Bphi_expr = sp.sympify(K3_Bphi_rounded) * r**3 + sp.sympify(K2_Bphi_rounded) * r**2 + sp.sympify(K1_Bphi_rounded) * r
+            # Display the formulas with the custom LaTeX printer
+            st.markdown("<h2 style='font-size:20px;'>Model used for each component of the magnetic field</h2>", unsafe_allow_html=True)
+            st.latex(r"B_r = 0")
+            st.latex(r"B_y(r, \phi) = A r^3 \left[ B + C \sin(\phi - \phi_0) + D \cos(\phi - \phi_0) \right] + E")
+            st.latex(r"B_\phi(r) = K_3 r^3 + K_2 r^2 + K_1 r")  # Adjusted order in the model display
 
-        # Display the formulas with the custom LaTeX printer
-        st.markdown("<h2 style='font-size:20px;'>Model used for each component of the magnetic field</h2>", unsafe_allow_html=True)
-        st.latex(r"B_r = 0")
-        st.latex(r"B_y(r, \phi) = A r^3 \left[ B + C \sin(\phi - \phi_0) + D \cos(\phi - \phi_0) \right] + E")
-        st.latex(r"B_\phi(r) = K_3 r^3 + K_2 r^2 + K_1 r")  # Adjusted order in the model display
-
-        st.markdown("<h2 style='font-size:20px;'>Resulting Formulas</h2>", unsafe_allow_html=True)
-        st.latex(f"B_r = {custom_latex.doprint(Br_expr)}")
-        st.latex(f"B_y(r, \\phi) = {custom_latex.doprint(By_expr)}")
-        st.latex(f"B_\\phi(r) = {custom_latex.doprint(Bphi_expr)}")
-        st.latex(r"\nabla \cdot \mathbf{B} = 0")
+            st.markdown("<h2 style='font-size:20px;'>Resulting Formulas</h2>", unsafe_allow_html=True)
+            st.latex(f"B_r = {custom_latex.doprint(Br_expr)}")
+            st.latex(f"B_y(r, \\phi) = {custom_latex.doprint(By_expr)}")
+            st.latex(f"B_\\phi(r) = {custom_latex.doprint(Bphi_expr)}")
+            st.latex(r"\nabla \cdot \mathbf{B} = 0")
 
 
-        # ----------------------------------------------------------------------------------
-        # Plot 8) Fitted Local and GSE components
-        # ----------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------
+            # Plot 8) Fitted Local and GSE components
+            # ----------------------------------------------------------------------------------
 
-        st.subheader("8) Fitted Local and GSE Components")
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+            st.subheader("8) Fitted Local and GSE Components")
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
 
-        # --- Plot magnetic field components in local Cartesian coordinates ---
-        ax1.plot(x_traj, B_vector, 'k-', label=r'$|\mathbf{B}|$')
-        ax1.plot(x_traj, Bx_traj, 'b-', label=r'$B_x$')
-        ax1.plot(x_traj, By_traj_cartesian, 'r-', label=r'$B_y$')
-        ax1.plot(x_traj, Bz_traj, 'g-', label=r'$B_z$')
-        ax1.set_xlabel("X local rotated")
-        ax1.set_ylabel("Magnetic Field (Local Cartesian Components)")
-        ax1.set_title("Local Coordinates")
-        ax1.legend()
-        ax1.grid(True) 
+            # --- Plot magnetic field components in local Cartesian coordinates ---
+            ax1.plot(x_traj, B_vector, 'k-', label=r'$|\mathbf{B}|$')
+            ax1.plot(x_traj, Bx_traj, 'b-', label=r'$B_x$')
+            ax1.plot(x_traj, By_traj_cartesian, 'r-', label=r'$B_y$')
+            ax1.plot(x_traj, Bz_traj, 'g-', label=r'$B_z$')
+            ax1.set_xlabel("X local rotated")
+            ax1.set_ylabel("Magnetic Field (Local Cartesian Components)")
+            ax1.set_title("Local Coordinates")
+            ax1.legend()
+            ax1.grid(True) 
 
-        # --- Plot magnetic field components in GSE coordinates ---
-        ax2.plot(x_traj_GSE, B_total_GSE, 'k-', label=r'$|\mathbf{B}|$')
-        ax2.plot(x_traj_GSE, Bx_GSE, 'b-', label=r'$B_{x,\mathrm{GSE}}$')
-        ax2.plot(x_traj_GSE, By_GSE, 'r-', label=r'$B_{y,\mathrm{GSE}}$')
-        ax2.plot(x_traj_GSE, Bz_GSE, 'g-', label=r'$B_{z,\mathrm{GSE}}$')
-        ax2.plot(x_traj_GSE, B_total_GSE, 'k-', label=r'$|\mathbf{B}|$')
-        ax2.plot(x_traj_GSE, Bx_GSE, 'b-', label=r'$B_{x,\mathrm{GSE}}$')
-        ax2.plot(x_traj_GSE, By_GSE, 'r-', label=r'$B_{y,\mathrm{GSE}}$')
-        ax2.plot(x_traj_GSE, Bz_GSE, 'g-', label=r'$B_{z,\mathrm{GSE}}$')
-        ax2.set_xlabel("X GSE axis")
-        ax2.set_ylabel("Magnetic Field (GSE Components)")
-        ax2.set_title("GSE Coordinates")
-        ax2.legend()
-        ax2.grid(True)
+            # --- Plot magnetic field components in GSE coordinates ---
+            ax2.plot(x_traj_GSE, B_total_GSE, 'k-', label=r'$|\mathbf{B}|$')
+            ax2.plot(x_traj_GSE, Bx_GSE, 'b-', label=r'$B_{x,\mathrm{GSE}}$')
+            ax2.plot(x_traj_GSE, By_GSE, 'r-', label=r'$B_{y,\mathrm{GSE}}$')
+            ax2.plot(x_traj_GSE, Bz_GSE, 'g-', label=r'$B_{z,\mathrm{GSE}}$')
+            ax2.plot(x_traj_GSE, B_total_GSE, 'k-', label=r'$|\mathbf{B}|$')
+            ax2.plot(x_traj_GSE, Bx_GSE, 'b-', label=r'$B_{x,\mathrm{GSE}}$')
+            ax2.plot(x_traj_GSE, By_GSE, 'r-', label=r'$B_{y,\mathrm{GSE}}$')
+            ax2.plot(x_traj_GSE, Bz_GSE, 'g-', label=r'$B_{z,\mathrm{GSE}}$')
+            ax2.set_xlabel("X GSE axis")
+            ax2.set_ylabel("Magnetic Field (GSE Components)")
+            ax2.set_title("GSE Coordinates")
+            ax2.legend()
+            ax2.grid(True)
 
-        st.pyplot(fig)
+            st.pyplot(fig)
 
 
         # ----------------------------------------------------------------------------------
@@ -1856,7 +1871,11 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         adjusted_data = [B_vector, Bx_GSE, By_GSE, Bz_GSE]
 
         # --- Gráfico comparativo en Streamlit ---
-        st.subheader("9) Fitting to the original Data")
+        if SHOW_PLOTS:
+            st.subheader("9) Fitting to the original Data")
+        else:
+            st.subheader("Fitting to the original Data")
+        fig_compare, ax = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
         fig_compare, ax = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
 
         components = ['B', 'Bx', 'By', 'Bz']
@@ -1899,174 +1918,177 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         st.pyplot(fig_compare)
         plt.close(fig_compare)
 
-        # --- Resultados de los parámetros de ajuste ---
-        st.markdown("<h2 style='font-size:20px;'>Fitting Parameters</h2>", unsafe_allow_html=True)
+        if SHOW_PLOTS:
+            # --- Fitting parameters results  ---
+            st.markdown("<h2 style='font-size:20px;'>Fitting Parameters</h2>", unsafe_allow_html=True)
 
-        # Asumiendo que z0, angle_x, angle_y, angle_z, delta están definidos
-        # Si no, ajusta estos valores según tu contexto
-        st.latex(f"z_0 = {z0:.2f}")
-        st.latex(f"\\theta_x = {np.rad2deg(angle_x):.2f}^\\circ")
-        st.latex(f"\\theta_y = {np.rad2deg(angle_y):.2f}^\\circ")
-        st.latex(f"\\theta_z = {np.rad2deg(angle_z):.2f}^\\circ")
-        st.latex(f"\\delta = {delta:.2f}")
+            # Asumiendo que z0, angle_x, angle_y, angle_z, delta están definidos
+            # Si no, ajusta estos valores según tu contexto
+            st.latex(f"z_0 = {z0:.2f}")
+            st.latex(f"\\theta_x = {np.rad2deg(angle_x):.2f}^\\circ")
+            st.latex(f"\\theta_y = {np.rad2deg(angle_y):.2f}^\\circ")
+            st.latex(f"\\theta_z = {np.rad2deg(angle_z):.2f}^\\circ")
+            st.latex(f"\\delta = {delta:.2f}")
 
-        # Mostrar los resultados en Streamlit
-        st.markdown("<h2 style='font-size:20px;'>Goodness-of-Fit (R²) Results</h2>", unsafe_allow_html=True)
-        st.latex(f"R^2_B = {R2_B:.4f}")
-        st.latex(f"R^2_{{Bx}} = {R2_Bx:.4f}")
-        st.latex(f"R^2_{{By}} = {R2_By:.4f}")
-        st.latex(f"R^2_{{Bz}} = {R2_Bz:.4f}")
-        st.latex(f"R^2_{{avg}} = {R2_avg:.4f}")
+            # Mostrar los resultados en Streamlit
+            st.markdown("<h2 style='font-size:20px;'>Goodness-of-Fit (R²) Results</h2>", unsafe_allow_html=True)
+            st.latex(f"R^2_B = {R2_B:.4f}")
+            st.latex(f"R^2_{{Bx}} = {R2_Bx:.4f}")
+            st.latex(f"R^2_{{By}} = {R2_By:.4f}")
+            st.latex(f"R^2_{{Bz}} = {R2_Bz:.4f}")
+            st.latex(f"R^2_{{avg}} = {R2_avg:.4f}")
 
-        # ----------------------------------------------------------------------------------
-        # Plot 10) Current Density formulas and Plot in the Cross section
-        # ----------------------------------------------------------------------------------
+            # ----------------------------------------------------------------------------------
+            # Plot 10) Current Density formulas and Plot in the Cross section
+            # ----------------------------------------------------------------------------------
 
-        # Current density calculations
-        # Define symbolic variables (for symbolic expressions only)
-        r, phi = sp.symbols('r phi')
-        mu_0_sym = 4 * np.pi * 1e-7  # Permeability of free space (H/m)
-        # r = r * a_local
+            # Current density calculations
+            # Define symbolic variables (for symbolic expressions only)
+            r, phi = sp.symbols('r phi')
+            mu_0_sym = 4 * np.pi * 1e-7  # Permeability of free space (H/m)
+            # r = r * a_local
 
-        # Metric parameters (ensure these are numerical)
-        a = float(a_ell)  # Typically 1 in your code
-        delta = float(delta)  # From your main loop
+            # Metric parameters (ensure these are numerical)
+            a = float(a_ell)  # Typically 1 in your code
+            delta = float(delta)  # From your main loop
 
-        # Substitute the fitted parameters (convert to numerical values). Note: Not necessary to convert E as it is not used for current densities.
-        A = float(A_By) * 10**(-9)  # Convert to T
-        B = float(B_By)
-        C = float(C_By)
-        D = float(D_By)
-        alpha_0 = float(alpha0_By)
-        K1 = float(K1_Bphi) * 10**(-9) # Convert to T
-        K2 = float(K2_Bphi) * 10**(-9) # Convert to T
-        K3 = float(K3_Bphi) * 10**(-9) # Convert to T
-        mu_0 = float(mu_0_sym)
+            # Substitute the fitted parameters (convert to numerical values). Note: Not necessary to convert E as it is not used for current densities.
+            A = float(A_By) * 10**(-9)  # Convert to T
+            B = float(B_By)
+            C = float(C_By)
+            D = float(D_By)
+            alpha_0 = float(alpha0_By)
+            K1 = float(K1_Bphi) * 10**(-9) # Convert to T
+            K2 = float(K2_Bphi) * 10**(-9) # Convert to T
+            K3 = float(K3_Bphi) * 10**(-9) # Convert to T
+            mu_0 = float(mu_0_sym)
 
-        # Define the current density expressions (symbolic, for display)
-        mu_0_sym = sp.Float(mu_0_sym)  # Permeability of free space (for symbolic use)
-        jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
-        # For jy, consider two cases: if delta is between 0.999 and 1.001 or not
-        if 0.999 <= float(delta) <= 1.001:
-            jy = (1 / (delta * mu_0_sym)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
-        else:
-            jy = (1 / (delta * mu_0_sym)) * (
-                (delta**2 - 1) * (2 * sp.cos(phi)**2 - 1) * (K1 * r + K2 * r**2 + K3 * r**3) -
-                (sp.sin(phi)**2 + delta**2 * sp.cos(phi)**2) * (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3)
-            )
-
-        jphi = (n_by * A * r**(n_by -2) / (delta * mu_0_sym)) * (B + C * sp.cos(phi - alpha_0) + D * sp.sin(phi - alpha_0))
-        
-        # Display the current density formulas with the specified dependencies
-        st.write("## Current Density Formulas")
-
-        # jr(r, phi)
-        st.write("**Radial Current Density:**")
-        st.latex(f"j_r(r, \\phi) = {custom_latex.doprint(jr)}")
-
-        # jy(r) or jy(r, phi) depending on the case
-        st.write("**Current Density in y:**")
-        if 0.999 <= float(delta) <= 1.001:
-            st.latex(f"j_y(r, \\phi) = {custom_latex.doprint(jy)}")
-        else:
-            st.latex(f"j_y(r, \\phi) = {custom_latex.doprint(jy)}")
-
-        # jphi(phi)
-        st.write("**Azimuthal Current Density:**")
-        st.latex(f"j_\\phi(r, \\phi) = {custom_latex.doprint(jphi)}")
-
-        # ----------------------------------------------------------------------------------
-        # Plot: Current Density Representation in the Cross Section
-        # ----------------------------------------------------------------------------------
-        #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        def jr_model_fitted(r, alpha):
-            """
-            Radial current density component using fitted parameters (numerical evaluation)
-            """
-            return (- A * r**(n_by-1) / (delta * mu_0)) * ( C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
-
-        def jy_model_fitted(r, alpha):
-            """
-            Y current density component using fitted parameters (numerical evaluation)
-            """
+            # Define the current density expressions (symbolic, for display)
+            mu_0_sym = sp.Float(mu_0_sym)  # Permeability of free space (for symbolic use)
+            jr = (- A * r**(n_by-1) / (delta * mu_0_sym)) * (D * sp.sin(phi - alpha_0) + C * sp.cos(phi - alpha_0))
+            # For jy, consider two cases: if delta is between 0.999 and 1.001 or not
             if 0.999 <= float(delta) <= 1.001:
-                return (1 / (delta * mu_0)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
+                jy = (1 / (delta * mu_0_sym)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
             else:
-                return (1 / (delta * mu_0)) * (
-                    (delta**2 - 1) * (2 * np.cos(alpha)**2 - 1) * (K1 * r + K2 * r**2 + K3 * r**3) -
-                    (np.sin(alpha)**2 + delta**2 * np.cos(alpha)**2) * (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3)
+                jy = (1 / (delta * mu_0_sym)) * (
+                    (delta**2 - 1) * (2 * sp.cos(phi)**2 - 1) * (K1 * r + K2 * r**2 + K3 * r**3) -
+                    (sp.sin(phi)**2 + delta**2 * sp.cos(phi)**2) * (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3)
                 )
 
-        def jphi_model_fitted(r, alpha):
-            """
-            Azimuthal current density component using fitted parameters (numerical evaluation)
-            """
-            return (n_by * A * r**(n_by -2)/ (delta * mu_0)) * (B + C * np.cos(alpha - alpha_0) + D * np.sin(alpha - alpha_0))
+            jphi = (n_by * A * r**(n_by -2) / (delta * mu_0_sym)) * (B + C * sp.cos(phi - alpha_0) + D * sp.sin(phi - alpha_0))
+            
+            # Display the current density formulas with the specified dependencies
+            st.subheader("10) Current Density")
+
+            # jr(r, phi)
+            st.write("**Radial Current Density:**")
+            st.latex(f"j_r(r, \\phi) = {custom_latex.doprint(jr)}")
+
+            # jy(r) or jy(r, phi) depending on the case
+            st.write("**Current Density in y:**")
+            if 0.999 <= float(delta) <= 1.001:
+                st.latex(f"j_y(r, \\phi) = {custom_latex.doprint(jy)}")
+            else:
+                st.latex(f"j_y(r, \\phi) = {custom_latex.doprint(jy)}")
+
+            # jphi(phi)
+            st.write("**Azimuthal Current Density:**")
+            st.latex(f"j_\\phi(r, \\phi) = {custom_latex.doprint(jphi)}")
+
+            # ----------------------------------------------------------------------------------
+            # Plot: Current Density Representation in the Cross Section
+            # ----------------------------------------------------------------------------------
+            #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+            def jr_model_fitted(r, alpha):
+                """
+                Radial current density component using fitted parameters (numerical evaluation)
+                """
+                return (- A * r**(n_by-1) / (delta * mu_0)) * ( C * np.sin(alpha - alpha_0) + D * np.cos(alpha - alpha_0)) 
+
+            def jy_model_fitted(r, alpha):
+                """
+                Y current density component using fitted parameters (numerical evaluation)
+                """
+                if 0.999 <= float(delta) <= 1.001:
+                    return (1 / (delta * mu_0)) * (- (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3))
+                else:
+                    return (1 / (delta * mu_0)) * (
+                        (delta**2 - 1) * (2 * np.cos(alpha)**2 - 1) * (K1 * r + K2 * r**2 + K3 * r**3) -
+                        (np.sin(alpha)**2 + delta**2 * np.cos(alpha)**2) * (3 * K1 * r + 4 * K2 * r**2 + 5 * K3 * r**3)
+                    )
+
+            def jphi_model_fitted(r, alpha):
+                """
+                Azimuthal current density component using fitted parameters (numerical evaluation)
+                """
+                return (n_by * A * r**(n_by -2)/ (delta * mu_0)) * (B + C * np.cos(alpha - alpha_0) + D * np.sin(alpha - alpha_0))
 
 
 
-        # Evaluate current density components on the grid
-        # r_grid_m = r_grid * a_ellipse * 1e3  # Convert km to m
-        r_grid_m = r_grid 
+            # Evaluate current density components on the grid
+            # r_grid_m = r_grid * a_ellipse * 1e3  # Convert km to m
+            r_grid_m = r_grid 
 
-        jr_vals_fitted = jr_model_fitted(r_grid_m, alpha_grid) 
-        jy_vals_fitted = jy_model_fitted(r_grid_m, alpha_grid) 
-        jphi_vals_fitted = jphi_model_fitted(r_grid_m, alpha_grid) 
-        #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-
-        # --- Magnitud total del campo magnético ajustado en la malla ---
-        j_total_fitted = np.sqrt(
-            grr_corrected * jr_vals_fitted**2 +
-            gyy_corrected * jy_vals_fitted**2 +
-            gphiphi_corrected * jphi_vals_fitted**2 +
-            2 * grphi_corrected * jr_vals_fitted * jphi_vals_fitted
-        )
-
-        j_total_fitted = np.ma.array(j_total_fitted, mask=mask)
+            jr_vals_fitted = jr_model_fitted(r_grid_m, alpha_grid) 
+            jy_vals_fitted = jy_model_fitted(r_grid_m, alpha_grid) 
+            jphi_vals_fitted = jphi_model_fitted(r_grid_m, alpha_grid) 
+            #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 
-        # Mask points outside the ellipse (r > 1)
-        mask = (r_grid > 1.0)
-        jr_masked_fitted = np.ma.array(jr_vals_fitted, mask=mask)
-        jy_masked_fitted = np.ma.array(jy_vals_fitted, mask=mask)
-        jphi_masked_fitted = np.ma.array(jphi_vals_fitted, mask=mask)
-        jtotal_masked_fitted = np.ma.array(j_total_fitted, mask=mask)
+            # --- Magnitud total del campo magnético ajustado en la malla ---
+            j_total_fitted = np.sqrt(
+                grr_corrected * jr_vals_fitted**2 +
+                gyy_corrected * jy_vals_fitted**2 +
+                gphiphi_corrected * jphi_vals_fitted**2 +
+                2 * grphi_corrected * jr_vals_fitted * jphi_vals_fitted
+            )
 
-        # Create 2D contour plots in Streamlit (2x2)
-        st.subheader("Current Density Cross Section (Fitted)")
+            j_total_fitted = np.ma.array(j_total_fitted, mask=mask)
 
-        fig, axs = plt.subplots(2, 2, figsize=(14, 12))  # 2 rows, 2 columns
-        fields_fitted = [jr_masked_fitted, jy_masked_fitted, jphi_masked_fitted, jtotal_masked_fitted]
-        titles = [r"$j_r$", r"$j_y$", r"$j_{\phi}$", r"$|\mathbf{j}|$"]
 
-        # Flatten axs for easy iteration
-        axs_flat = axs.flatten()
+            # Mask points outside the ellipse (r > 1)
+            mask = (r_grid > 1.0)
+            jr_masked_fitted = np.ma.array(jr_vals_fitted, mask=mask)
+            jy_masked_fitted = np.ma.array(jy_vals_fitted, mask=mask)
+            jphi_masked_fitted = np.ma.array(jphi_vals_fitted, mask=mask)
+            jtotal_masked_fitted = np.ma.array(j_total_fitted, mask=mask)
 
-        for ax, field, title in zip(axs_flat, fields_fitted, titles):
-            # Contour plots of the current density
-            ctf = ax.contourf(X_grid, Y_grid, field, 50, cmap='viridis')
-            ax.contour(X_grid, Y_grid, field, 10, colors='k', alpha=0.4)
+            # Create 2D contour plots in Streamlit (2x2)
+            st.subheader("Current Density Cross Section")
 
-            # Plot the ellipse WITHOUT a legend entry
-            ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2, label='_nolegend_')
-            # Plot only the trajectory with its legend entry
-            ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label='Trajectory')
+            fig, axs = plt.subplots(2, 2, figsize=(14, 12))  # 2 rows, 2 columns
+            fields_fitted = [jr_masked_fitted, jy_masked_fitted, jphi_masked_fitted, jtotal_masked_fitted]
+            titles = [r"$j_r$", r"$j_y$", r"$j_{\phi}$", r"$|\mathbf{j}|$"]
 
-            ax.set_aspect('equal', 'box')
-            ax.set_title(f"Fitted: {title}", fontsize=15)
-            ax.set_xlabel("X local rotated")
-            ax.set_ylabel("Y local rotated")
+            # Flatten axs for easy iteration
+            axs_flat = axs.flatten()
 
-            # Colorbar for current density
-            fig.colorbar(ctf, ax=ax, shrink=0.9, label='Current Density (A/m²)')
+            for ax, field, title in zip(axs_flat, fields_fitted, titles):
+                # Contour plots of the current density
+                ctf = ax.contourf(X_grid, Y_grid, field, 50, cmap='viridis')
+                ax.contour(X_grid, Y_grid, field, 10, colors='k', alpha=0.4)
 
-            # Legend in the upper right corner showing only 'Trajectory'
-            ax.legend(loc='upper right')
+                # Plot the ellipse WITHOUT a legend entry
+                ax.plot(x_ellipse_rotated, y_ellipse_rotated, 'k-', lw=2)
+                # Plot only the trajectory with its legend entry
+                ax.plot(x_traj_rotated, y_traj_rotated, 'b--', lw=2, label='Trajectory')
 
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
+                ax.set_aspect('equal', 'box')
+                ax.set_title(f"Fitted: {title}", fontsize=15)
+                ax.set_xlabel("X local rotated")
+                ax.set_ylabel("Y local rotated")
+
+                # Colorbar for current density
+                fig.colorbar(ctf, ax=ax, shrink=0.9, label='Current Density (A/m²)')
+
+                # Legend in the upper right corner showing only 'Trajectory'
+                ax.legend(loc='upper right')
+
+            plt.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+
+
 
 
 
@@ -2078,8 +2100,9 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # PART B) CME Propagation
         # ----------------------------------------------------------------------------------
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        st.markdown("---")  
 
-        st.header("CME Propagation")
+        st.header("CME Propagation Forecast")
 
         # Compute the date corresponding to ddoy_exp[0]
         initial_doy = initial_date.timetuple().tm_yday + (initial_date.hour / 24.0) + (initial_date.minute / (24.0 * 60.0)) + (initial_date.second / (24.0 * 3600.0))
@@ -2112,7 +2135,6 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # ----------------------------------------------------------------------------------
         # Plot 11) Propagation along the Interplanetary Medium
         # ----------------------------------------------------------------------------------
-        st.subheader("11) CME Propagation Video")
 
         # 11.A) Physical Parameters from the Fitting
         # ----------------------------------------------------------------------------------
@@ -2384,141 +2406,145 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # 11.G) Animation Computation with Progress Bar
         # ----------------------------------------------------------------------------------
-        st.write("Generating animation for the CME...")
-        progress_bar = st.progress(0)
-        progress_text = st.empty()
+        if SHOW_ANIMATION:
+            # st.subheader("11) CME Propagation Video")
 
-        time_per_frame_est = 0.1  # seconds per frame
-        total_time_est = num_frames * time_per_frame_est
-        start_time = datetime.now()
+            # st.write("Generating animation for the CME...")
+            progress_bar = st.progress(0)
+            progress_text = st.empty()
 
-        def update(frame):
-            progress = (frame + 1) / num_frames
-            progress_bar.progress(progress)
-            
-            elapsed_time = (datetime.now() - start_time).total_seconds()
-            if frame > 0:
-                time_per_frame_est_actual = elapsed_time / frame
-                remaining_time = time_per_frame_est_actual * (num_frames - frame - 1)
-            else:
-                remaining_time = total_time_est
-            
-            progress_text.text(f"Progress: {int(progress * 100)}% - Estimated remaining time: {remaining_time:.1f} seconds")
+            time_per_frame_est = 0.1  # seconds per frame
+            total_time_est = num_frames * time_per_frame_est
+            start_time = datetime.now()
 
-            ax.clear()
-            r = r_positions[frame]
-            scale = 1.0 if r == r_start / 1000 else (r / (r_start / 1000)) ** expansion_ratio
-            R_current = R_0 * scale
-            a_max_current = a_max_0 * scale
-            b_max_current = b_max_0 * scale
-            a_current = a_max_current * taper
-            b_current = b_max_current * taper
-            
-            x = (R_current + a_current * np.cos(theta)) * np.cos(phi) + r
-            y = (R_current + a_current * np.cos(theta)) * np.sin(phi)
-            z = b_current * np.sin(theta)
-            
-            x_rot = x
-            y_rot = y * np.cos(theta_x) - z * np.sin(theta_x)
-            z_rot = y * np.sin(theta_x) + z * np.cos(theta_x)
-            
-            taper0 = np.cos(phi0)
-            a0 = a_max_current * taper0
-            b0 = b_max_current * taper0
-            x_sec = (R_current + a0 * np.cos(theta_sec)) * np.cos(phi0) + r
-            y_sec = (R_current + a0 * np.cos(theta_sec)) * np.sin(phi0)
-            z_sec = b0 * np.sin(theta_sec)
-            x_sec_rot = x_sec
-            y_sec_rot = y_sec * np.cos(theta_x) - z_sec * np.sin(theta_x)
-            z_sec_rot = y_sec * np.sin(theta_x) + z_sec * np.cos(theta_x)
-            
-            y_center = np.mean(y_sec_rot)
-            z_center = np.mean(z_sec_rot)
-            y_rot_trans = y_rot - y_center
-            z_rot_trans = z_rot - z_center
-            y_sec_rot_trans = y_sec_rot - y_center
-            z_sec_rot_trans = z_sec_rot - z_center
-            
-            x_line = np.linspace(0, range_au, 50)
-            y_line = np.zeros_like(x_line)
-            z_line = np.zeros_like(x_line)
-            
-            y_proj = y_rot_trans.ravel()
-            z_proj = z_rot_trans.ravel()
-            alpha_angles = np.linspace(0, 2*np.pi, 180)
-            y_contour = []
-            z_contour = []
-            for alpha_val in alpha_angles:
-                dy = np.cos(alpha_val)
-                dz = np.sin(alpha_val)
-                dot_product = y_proj * dy + z_proj * dz
-                idx_max = np.argmax(dot_product)
-                y_contour.append(y_proj[idx_max])
-                z_contour.append(z_proj[idx_max])
-            y_contour = np.array(y_contour)
-            z_contour = np.array(z_contour)
-            ellipse_model = EllipseModel()
-            if ellipse_model.estimate(np.vstack((y_contour, z_contour)).T):
-                yc, zc, a_fit, b_fit, theta_fit = ellipse_model.params
-                cme_size = 2 * a_fit
-            else:
-                cme_size = np.nan
+            def update(frame):
+                progress = (frame + 1) / num_frames
+                progress_bar.progress(progress)
+                
+                elapsed_time = (datetime.now() - start_time).total_seconds()
+                if frame > 0:
+                    time_per_frame_est_actual = elapsed_time / frame
+                    remaining_time = time_per_frame_est_actual * (num_frames - frame - 1)
+                else:
+                    remaining_time = total_time_est
+                
+                progress_text.text(f"Progress: {int(progress * 100)}% - Estimated remaining time: {remaining_time:.1f} seconds")
 
-            ax.plot_surface(x_rot, y_rot_trans, z_rot_trans, rstride=2, cstride=2, 
-                            alpha=0.6, antialiased=True)
-            ax.plot(
-                x_sec_rot, y_sec_rot_trans, z_sec_rot_trans,
-                color='red', linewidth=2,
-                label=r'Section ($\phi_0$=' + f'{phi0_deg:.1f}°)')
-            ax.plot(
-                x_line, y_line, z_line,
-                color='gray', linestyle='--', linewidth=1, alpha=0.5,
-                label='X Axis')
-            ax.plot_surface(x_sun, y_sun, z_sun, color='orange', alpha=0.8)
-            ax.plot(
-                x_earth, y_earth, z_earth,
-                color='blue', linewidth=1,
-                label='Earth Orbit')
-            ax.plot(
-                x_mercury, y_mercury, z_mercury,
-                color='black', linewidth=0.5, alpha=0.5,
-                label='Mercury Orbit')
-            ax.plot(
-                x_venus, y_venus, z_venus,
-                color='black', linewidth=0.5, alpha=0.5,
-                label='Venus Orbit')
-            ax.plot(
-                x_mars, y_mars, z_mars,
-                color='red', linewidth=0.5, alpha=0.5,
-                label='Mars Orbit')
-            ax.scatter(
-                satellite_position[0], satellite_position[1], satellite_position[2],
-                color='black', s=20,
-                label='Satellite')
+                ax.clear()
+                r = r_positions[frame]
+                scale = 1.0 if r == r_start / 1000 else (r / (r_start / 1000)) ** expansion_ratio
+                R_current = R_0 * scale
+                a_max_current = a_max_0 * scale
+                b_max_current = b_max_0 * scale
+                a_current = a_max_current * taper
+                b_current = b_max_current * taper
+                
+                x = (R_current + a_current * np.cos(theta)) * np.cos(phi) + r
+                y = (R_current + a_current * np.cos(theta)) * np.sin(phi)
+                z = b_current * np.sin(theta)
+                
+                x_rot = x
+                y_rot = y * np.cos(theta_x) - z * np.sin(theta_x)
+                z_rot = y * np.sin(theta_x) + z * np.cos(theta_x)
+                
+                taper0 = np.cos(phi0)
+                a0 = a_max_current * taper0
+                b0 = b_max_current * taper0
+                x_sec = (R_current + a0 * np.cos(theta_sec)) * np.cos(phi0) + r
+                y_sec = (R_current + a0 * np.cos(theta_sec)) * np.sin(phi0)
+                z_sec = b0 * np.sin(theta_sec)
+                x_sec_rot = x_sec
+                y_sec_rot = y_sec * np.cos(theta_x) - z_sec * np.sin(theta_x)
+                z_sec_rot = y_sec * np.sin(theta_x) + z_sec * np.cos(theta_x)
+                
+                y_center = np.mean(y_sec_rot)
+                z_center = np.mean(z_sec_rot)
+                y_rot_trans = y_rot - y_center
+                z_rot_trans = z_rot - z_center
+                y_sec_rot_trans = y_sec_rot - y_center
+                z_sec_rot_trans = z_sec_rot - z_center
+                
+                x_line = np.linspace(0, range_au, 50)
+                y_line = np.zeros_like(x_line)
+                z_line = np.zeros_like(x_line)
+                
+                y_proj = y_rot_trans.ravel()
+                z_proj = z_rot_trans.ravel()
+                alpha_angles = np.linspace(0, 2*np.pi, 180)
+                y_contour = []
+                z_contour = []
+                for alpha_val in alpha_angles:
+                    dy = np.cos(alpha_val)
+                    dz = np.sin(alpha_val)
+                    dot_product = y_proj * dy + z_proj * dz
+                    idx_max = np.argmax(dot_product)
+                    y_contour.append(y_proj[idx_max])
+                    z_contour.append(z_proj[idx_max])
+                y_contour = np.array(y_contour)
+                z_contour = np.array(z_contour)
+                ellipse_model = EllipseModel()
+                if ellipse_model.estimate(np.vstack((y_contour, z_contour)).T):
+                    yc, zc, a_fit, b_fit, theta_fit = ellipse_model.params
+                    cme_size = 2 * a_fit
+                else:
+                    cme_size = np.nan
 
-            ax.set_xlabel('X (km)')
-            ax.set_ylabel('Y (km)')
-            ax.set_zlabel('Z (km)')
-            ax.set_title(f'CME Expanding (X = {r/149597870.7:.2f} AU, Size = {cme_size/149597870.7:.2f} AU)')
-            ax.set_xlim(x_limits)
-            ax.set_ylim(y_limits)
-            ax.set_zlim(z_limits)
-            ax.legend()
-            return
+                ax.plot_surface(x_rot, y_rot_trans, z_rot_trans, rstride=2, cstride=2, 
+                                alpha=0.6, antialiased=True)
+                ax.plot(
+                    x_sec_rot, y_sec_rot_trans, z_sec_rot_trans,
+                    color='red', linewidth=2,
+                    label=r'Section ($\phi_0$=' + f'{phi0_deg:.1f}°)')
+                ax.plot(
+                    x_line, y_line, z_line,
+                    color='gray', linestyle='--', linewidth=1, alpha=0.5,
+                    label='X Axis')
+                ax.plot_surface(x_sun, y_sun, z_sun, color='orange', alpha=0.8)
+                ax.plot(
+                    x_earth, y_earth, z_earth,
+                    color='blue', linewidth=1,
+                    label='Earth Orbit')
+                ax.plot(
+                    x_mercury, y_mercury, z_mercury,
+                    color='black', linewidth=0.5, alpha=0.5,
+                    label='Mercury Orbit')
+                ax.plot(
+                    x_venus, y_venus, z_venus,
+                    color='black', linewidth=0.5, alpha=0.5,
+                    label='Venus Orbit')
+                ax.plot(
+                    x_mars, y_mars, z_mars,
+                    color='red', linewidth=0.5, alpha=0.5,
+                    label='Mars Orbit')
+                ax.scatter(
+                    satellite_position[0], satellite_position[1], satellite_position[2],
+                    color='black', s=20,
+                    label='Satellite')
 
-        # 11.H) Animation Execution with Progress Bar
-        # ----------------------------------------------------------------------------------
-        with st.spinner("Generating animation..."):
-            print("Generating CME simulation animation...")
-            ani = animation.FuncAnimation(fig, update, frames=tqdm(range(num_frames), desc="Animation Progress"), 
-                                        interval=1000//fps, blit=False)
-            html_video = ani.to_html5_video()
-            html_video = f'''
-            <div style="display:flex; justify-content:center;">
-            {html_video.replace('<video ', '<video style="max-width:100%; margin:auto; display:block;" ')}
-            </div>
-            '''
-        st.components.v1.html(html_video, height=600)
+                ax.set_xlabel('X (km)')
+                ax.set_ylabel('Y (km)')
+                ax.set_zlabel('Z (km)')
+                ax.set_title(f'CME Expanding (X = {r/149597870.7:.2f} AU, Size = {cme_size/149597870.7:.2f} AU)')
+                ax.set_xlim(x_limits)
+                ax.set_ylim(y_limits)
+                ax.set_zlim(z_limits)
+                ax.legend()
+                return
+
+            # 11.H) Animation Execution with Progress Bar
+            # ----------------------------------------------------------------------------------
+            with st.spinner("Generating animation..."):
+                print("Generating CME simulation animation...")
+                ani = animation.FuncAnimation(fig, update, frames=tqdm(range(num_frames), desc="Animation Progress"), 
+                                            interval=1000//fps, blit=False)
+                html_video = ani.to_html5_video()
+                html_video = f'''
+                <div style="display:flex; justify-content:center;">
+                {html_video.replace('<video ', '<video style="max-width:100%; margin:auto; display:block;" ')}
+                </div>
+                '''
+            # st.components.v1.html(html_video, height=600)
+
 
         # ———————————————————————————————
         # 12.A) Print CME speeds at r0, r1, r2 and r3
@@ -2536,42 +2562,30 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             "r₃ (1.524 AU)":             r3
         }
 
-        st.subheader("CME Speed at Key Distances")
-        for label, r_m in key_points.items():
-            # interpolate v_full (m/s) at r_m, then convert to km/s
-            v_kms = np.interp(r_m, r_full, v_full) / 1e3
-            st.markdown(f"- **Speed at {label}:** {v_kms:.2f} km/s")
-
-
-
         # ----------------------------------------------------------------------------------
-        # 12B) Solar Wind and Propagation along the Interplanetary Medium
+        # 12) Solar Wind and Propagation along the Interplanetary Medium
         # ----------------------------------------------------------------------------------
-        st.subheader("12) Velocity profile along the Interplanetary Medium")
-        
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(r_full / R_s, v_full / 1e3, label='CME Velocity v(r)', color='blue')
-        ax.plot(r_full / R_s, v_sw(r_full) / 1e3, label='Solar Wind Speed v_sw(r)', color='red', linestyle='--')
-        ax.axvline(x=r0 / R_s, color='green', linestyle='--', label='r0 (Departure at 2.5 R_s)')
-        ax.axvline(x=r1 / R_s, color='purple', linestyle='--', label=f'r1 (Satellite at {distance:.2f} AU)')
-        ax.axvline(x=r2 / R_s, color='orange', linestyle='--', label='r2 (Earth at 1 AU)')
-        ax.axvline(x=r3 / R_s, color='red', linestyle='--', label='r3 (Mars at 1.52 AU)')
-        ax.set_xlabel('Distance from the Sun (r/R_s)')
-        ax.set_ylabel('Speed (km/s)')
-        ax.set_xscale('log')
-        ax.set_xlim([1.8, r_max / R_s])  # Start at 1.8 R_s
-        ax.grid(True, which='both', ls='--')
-        ax.legend()
-        ax.set_title('Velocity Profile of the CME and Solar Wind')
-        st.pyplot(fig)
-
-
+        if SHOW_PLOTS:
+            
+            fig_velocity_profile, ax = plt.subplots(figsize=(10, 6))
+            ax.plot(r_full / R_s, v_full / 1e3, label='CME Velocity v(r)', color='blue')
+            ax.plot(r_full / R_s, v_sw(r_full) / 1e3, label='Solar Wind Speed v_sw(r)', color='red', linestyle='--')
+            ax.axvline(x=r0 / R_s, color='green', linestyle='--', label='r0 (Departure at 2.5 R_s)')
+            ax.axvline(x=r1 / R_s, color='purple', linestyle='--', label=f'r1 (Satellite at {distance:.2f} AU)')
+            ax.axvline(x=r2 / R_s, color='orange', linestyle='--', label='r2 (Earth at 1 AU)')
+            ax.axvline(x=r3 / R_s, color='red', linestyle='--', label='r3 (Mars at 1.52 AU)')
+            ax.set_xlabel('Distance from the Sun (r/R_s)')
+            ax.set_ylabel('Speed (km/s)')
+            ax.set_xscale('log')
+            ax.set_xlim([1.8, r_max / R_s])
+            ax.grid(True, which='both', ls='--')
+            ax.legend()
+            ax.set_title('Velocity Profile of the CME and Solar Wind')
+            # st.pyplot(fig_velocity_profile)
 
         # ----------------------------------------------------------------------------------
         # 13) 3D Plot of the CME
         # ----------------------------------------------------------------------------------
-        st.subheader("13) 3D Plot of the CME")
-
         # 13.A) CME Dimensions in AU for Plotting
         # ----------------------------------------------------------------------------------
         a_max_au = a_1 / AU_km  # [AU]
@@ -2620,6 +2634,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # 13.C) Plotting with Plotly (3D Plot)
         # ----------------------------------------------------------------------------------
+        # st.subheader("13) 3D Plot of the CME")
         fig = go.Figure()
 
         # Apply translation to CME surface
@@ -2721,19 +2736,17 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                 zaxis_title="Z [AU]",
                 aspectmode='data',
             ),
-            title=f"CME Model at r = {distance:.2f} AU (satellite's position)", #    φ₀={phi0_deg:.1f}°, θₓ={theta_x_deg:.1f}°",
+            # title=f"CME Model at r = {distance:.2f} AU (satellite's position)", #    φ₀={phi0_deg:.1f}°, θₓ={theta_x_deg:.1f}°",
             showlegend=True,
             height=800
         )
-
-        st.plotly_chart(fig, use_container_width=True)
+        fig_3d_cme = fig
+        # st.plotly_chart(fig, use_container_width=True)
 
 
         # ----------------------------------------------------------------------------------
         # 14) Projection onto the YZ Plane and Ellipse Fitting with Horizontal Cut
         # ----------------------------------------------------------------------------------
-
-        st.subheader("14) Projection onto the YZ Plane")
 
         # 14.1) Projection onto the YZ Plane and Ellipse Fitting with Horizontal Cut
         # ----------------------------------------------------------------------------------
@@ -2854,14 +2867,16 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         )
 
         # Display the figure
-        st.plotly_chart(fig_proj, use_container_width=True)
+        # if SHOW_PLOTS:
+            # st.subheader("14) Projection onto the YZ Plane")
+            # st.plotly_chart(fig_proj, use_container_width=True)
 
-        # Display the length of the horizontal cut and the projected area below the figure
-        if cut_length is not None:
-            st.markdown(f"- **Length of the horizontal cut at z = 0**: {cut_length:.3f} AU")
-        else:
-            st.markdown(f"- **Length of the horizontal cut at z = 0**: Not applicable (z = 0 does not intersect the ellipse)")
-        st.markdown(f"- **Projected area**: {area_ellipse:.3f} AU²")
+            # # Display the length of the horizontal cut and the projected area below the figure
+            # if cut_length is not None:
+            #     st.markdown(f"- **Length of the horizontal cut at z = 0**: {cut_length:.3f} AU")
+            # else:
+            #     st.markdown(f"- **Length of the horizontal cut at z = 0**: Not applicable (z = 0 does not intersect the ellipse)")
+            # st.markdown(f"- **Projected area**: {area_ellipse:.3f} AU²")
 
 
 
@@ -2964,21 +2979,19 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             z_max_r2 = max(z_ellipse_r2)
             st.write(f"Z-range of the ellipse at r2: [{z_min_r2:.3f}, {z_max_r2:.3f}] AU")
 
-        # Display the results
-        st.markdown("**Results at 1AU**:")
+        # # Display the results
+        # st.markdown("**Results at 1AU**:")
 
-        if cut_length_r2 is not None:
-            st.markdown(f"- **Length of the horizontal cut at z = 0**: {cut_length_r2:.3f} AU")
-        else:
-            st.markdown(f"- **Length of the horizontal cut at z = 0**: Not applicable (z = 0 does not intersect the ellipse)")
-        st.markdown(f"- **Projected area**: {area_ellipse_r2:.3f} AU²")
+        # if cut_length_r2 is not None:
+        #     st.markdown(f"- **Length of the horizontal cut at z = 0**: {cut_length_r2:.3f} AU")
+        # else:
+        #     st.markdown(f"- **Length of the horizontal cut at z = 0**: Not applicable (z = 0 does not intersect the ellipse)")
+        # st.markdown(f"- **Projected area**: {area_ellipse_r2:.3f} AU²")
 
 
 
         # 15) Trajectory of the CME contained in the XY plane
         # ----------------------------------------------------------------------------------
-        st.subheader("15) Evolution of the length of the CME contained in the XY plane")
-
         # From previous sections
         L_1 = cut_length  # From section 14.1
         L_2 = cut_length_r2  # From section 14.B
@@ -3007,16 +3020,16 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             # Fit a power-law function f(r) = A * r^k such that f(r_1) = L_1/2 and f(r_2) = L_2/2
             if L_1 > 0 and L_2 > 0 and r2_au > r1_au * 1.08:  # Ensure L_1 and L_2 are positive to avoid log issues
                 # Solve for k
-                k = np.log(L_2 / L_1) / np.log(r2_au / r1_au)
+                kk = np.log(L_2 / L_1) / np.log(r2_au / r1_au)
                 # Solve for A
-                A = (L_1 / 2) / (r1_au ** k)
+                AA = (L_1 / 2) / (r1_au ** kk)
             else:
-                k = 1.4
-                A = (L_1 / 2) / (r1_au ** k)
+                kk = 1.4
+                AA = (L_1 / 2) / (r1_au ** kk)
 
             # Define the function f(r) = A * r^k
             def f(r):
-                return A * (r ** k)
+                return AA * (r ** kk)
 
             # Compute L_3 at r_3 using the power-law fit
             L_3_half = f(r3_au)  # L_3/2
@@ -3030,75 +3043,77 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             f_values = f(r_values)
             f_neg_values = -f_values  # Negative for symmetry
 
-            # Crea la figura
-            fig = go.Figure()
-
-            # 1) Power‐law positive (blue, with legend)
-            fig.add_trace(go.Scatter(
-                x=r_values,
-                y=f_values,
-                mode='lines',
-                line=dict(color='blue', width=2),
-                name=f'f(r) = {A:.3f}·r^{k:.2f}'
-            ))
-
-            # 2) Power‐law negative (blue, without legend)
-            fig.add_trace(go.Scatter(
-                x=r_values,
-                y=-f_values,
-                mode='lines',
-                line=dict(color='blue', width=2),
-                showlegend=False
-            ))
-
-
             # 3) Vertical lines contained between the curves, with English legend labels
             f1 = f(r1_au)
             f2 = f(r2_au)
             f3 = f(r3_au)
+        
+            if SHOW_PLOTS: 
+                # st.subheader("15) Evolution of the length of the CME contained in the XY plane")
 
-            # Line at r1 (Satellite)
-            fig.add_trace(go.Scatter(
-                x=[r1_au, r1_au],
-                y=[-f1, f1],
-                mode='lines',
-                line=dict(color='black', width=2, dash='dot'),
-                name=f'r1 = {r1_au:.2f} AU (Satellite)'
-            ))
+                # Crea la figura
+                fig_cme_width = go.Figure()
 
-            # Line at r2 (Earth)
-            fig.add_trace(go.Scatter(
-                x=[r2_au, r2_au],
-                y=[-f2, f2],
-                mode='lines',
-                line=dict(color='black', width=2, dash='dot'),
-                name=f'r2 = {r2_au:.2f} AU (Earth)'
-            ))
+                # 1) Power‐law positive (blue, with legend)
+                fig_cme_width.add_trace(go.Scatter(
+                    x=r_values,
+                    y=f_values,
+                    mode='lines',
+                    line=dict(color='blue', width=2),
+                    name=f'f(r) = {AA:.3f}·r^{kk:.2f}'
+                ))
 
-            # Line at r3 (Mars)
-            fig.add_trace(go.Scatter(
-                x=[r3_au, r3_au],
-                y=[-f3, f3],
-                mode='lines',
-                line=dict(color='black', width=2, dash='dot'),
-                name=f'r3 = {r3_au:.2f} AU (Mars)'
-            ))
+                # 2) Power‐law negative (blue, without legend)
+                fig_cme_width.add_trace(go.Scatter(
+                    x=r_values,
+                    y=-f_values,
+                    mode='lines',
+                    line=dict(color='blue', width=2),
+                    showlegend=False
+                ))
+
+                # Line at r1 (Satellite)
+                fig_cme_width.add_trace(go.Scatter(
+                    x=[r1_au, r1_au],
+                    y=[-f1, f1],
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='dot'),
+                    name=f'r1 = {r1_au:.2f} AU (Satellite)'
+                ))
+
+                # Line at r2 (Earth)
+                fig_cme_width.add_trace(go.Scatter(
+                    x=[r2_au, r2_au],
+                    y=[-f2, f2],
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='dot'),
+                    name=f'r2 = {r2_au:.2f} AU (Earth)'
+                ))
+
+                # Line at r3 (Mars)
+                fig_cme_width.add_trace(go.Scatter(
+                    x=[r3_au, r3_au],
+                    y=[-f3, f3],
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='dot'),
+                    name=f'r3 = {r3_au:.2f} AU (Mars)'
+                ))
 
 
-            # 4) Layout actualizado
-            fig.update_layout(
-                title="Contained Trajectory of the CME in the XY Plane",
-                xaxis_title="x [AU]",
-                yaxis_title="z [AU]",
-                showlegend=True,
-                height=500,
-                width=700,
-                xaxis=dict(zeroline=True, zerolinecolor='black', zerolinewidth=1),
-                yaxis=dict(zeroline=True, zerolinecolor='black', zerolinewidth=1)
-            )
+                # 4) Layout actualizado
+                fig_cme_width.update_layout(
+                    title="Contained Trajectory of the CME in the XY Plane",
+                    xaxis_title="x [AU]",
+                    yaxis_title="z [AU]",
+                    showlegend=True,
+                    height=500,
+                    width=700,
+                    xaxis=dict(zeroline=True, zerolinecolor='black', zerolinewidth=1),
+                    yaxis=dict(zeroline=True, zerolinecolor='black', zerolinewidth=1)
+                )
 
-            # 5) Muestra el plot
-            st.plotly_chart(fig, use_container_width=True)
+                # 5) Muestra el plot
+                # st.plotly_chart(fig_cme_width, use_container_width=True)
 
             # Recompute the angles as γ_i = arctan( f(r_i) / r_i )
             gamma_1_rad = np.arctan(f1 / r1_au)
@@ -3108,21 +3123,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             gamma_1_deg = np.degrees(gamma_1_rad)
             gamma_2_deg = np.degrees(gamma_2_rad)
             gamma_3_deg = np.degrees(gamma_3_rad)
-
-            # 6) Mostrar los tres ángulos debajo del gráfico
-            st.markdown("#### Angular widths")
-            st.latex(r"\gamma_1 = \arctan\!\bigl(\tfrac{f(r_1)}{r_1}\bigr) =\pm %.2f^\circ" % gamma_1_deg)
-            st.latex(r"\gamma_2 = \arctan\!\bigl(\tfrac{f(r_2)}{r_2}\bigr) =\pm %.2f^\circ" % gamma_2_deg)
-            st.latex(r"\gamma_3 = \arctan\!\bigl(\tfrac{f(r_3)}{r_3}\bigr) =\pm %.2f^\circ" % gamma_3_deg)
-
-        else:
-            st.markdown("#### Angular Widths:")
-            st.markdown("- **γ₁, γ₂, and γ₃**: Cannot be calculated due to missing cut length(s).")
-            st.markdown("#### Fitted Power-Law Functions:")
-            st.markdown("- Cannot fit power-law functions due to missing cut length(s).")
-                    
-
-
+   
 
         # 15.B) Proporciones del segmento en z=0 para y < 0 y y > 0
         # ----------------------------------------------------------------------------------
@@ -3147,8 +3148,9 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
             
             # Longitud total
             L = abs(y1 - y2)
-            
-            # Determinar proporciones
+
+            y_center = (y1 + y2) / 2
+
             if y1 > 0 and y2 > 0:
                 prop_y_pos = 1.0
                 prop_y_neg = 0.0
@@ -3160,26 +3162,19 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
                 prop_y_pos = abs(y1) / L if y1 > 0 else abs(y2) / L
                 prop_y_neg = abs(y2) / L if y2 < 0 else abs(y1) / L
             
-            DeltaL = (prop_y_neg - prop_y_pos)/2
-            # Calcular el ángulo de rotación
-            theta_rot = np.arctan(DeltaL / (r1_au))
-            theta_rot_deg = np.degrees(np.arctan(DeltaL / (r1_au)))
-            
-            st.markdown("#### Segment Proportions at z=0:")
-            st.markdown(f"- Total longitude contained in XY at r1: {L:.3f} AU")
-            st.markdown(f"- Portion at the right of the satellite: {prop_y_pos:.3f} ({prop_y_pos*100:.1f}%)")
-            st.markdown(f"- Portion at the left: {prop_y_neg:.3f} ({prop_y_neg*100:.1f}%)")
-            st.markdown(f"- Ecliptic Longitude difference between the CME's center and the Satellite: {np.degrees(theta_rot):.2f}°")
-        else:
-            st.markdown("#### Segment Proportions at z=0:")
-            st.markdown("- La elipse no cruza z=0. Longitud = 0, proporciones indefinidas.")
 
+            theta_rot = np.arctan2(y_center, r1_au)
+            theta_rot_deg = np.degrees(theta_rot)
 
-
+            if abs(theta_rot_deg) > gamma_1_deg + 1e-3:
+                # Si el offset supera la anchura angular, lo forzamos a 0
+                theta_rot_deg = 0.0
+                theta_rot = 0.0
+                                    
         # ----------------------------------------------------------------------------------
         # 16) Summary of the Results
         # ----------------------------------------------------------------------------------
-        st.subheader("Summary of the Results")
+        # st.subheader("Summary of the Results")
 
         # Total travel time from r0 (2.5 R_s) to r1
         travel_time_r0_to_r1 = travel_time_r0_r1
@@ -3223,40 +3218,10 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         r0_in_rs = r0 / R_s  # r0 in units of R_s
         r3_in_au = r3 / AU   # r3 in units of AU
 
-        # Summary with subsections and smaller subtitles
-        st.markdown(f"""
-        <h3 style='font-size:16px;'>Key Timestamps</h3>
-        <ul>
-            <li><b>Departure from r0 (2.5 R_s):</b> {fecha_departure_r0.strftime('%Y-%m-%d')}          <b>Time:</b> {fecha_departure_r0.strftime('%H:%M:%S')}</li>
-            <li><b>Detected by the satellite on:</b> {fecha_llegada_r1.strftime('%Y-%m-%d')}          <b>Time:</b> {fecha_llegada_r1.strftime('%H:%M:%S')}</li>
-            <li><b>Crosses the Earth's orbit on:</b> {fecha_llegada_r2.strftime('%Y-%m-%d')}          <b>Time:</b> {fecha_llegada_r2.strftime('%H:%M:%S')}</li>
-            <li><b>Crosses Mars' orbit on:</b> {fecha_llegada_r3.strftime('%Y-%m-%d')}          <b>Time:</b> {fecha_llegada_r3.strftime('%H:%M:%S')}</li>
-        </ul>
-
-        <h3 style='font-size:16px;'>Propagation Times</h3>
-        <ul>
-            <li><b>Travel Time (Sun to Satellite):</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
-            <li><b>Travel Time (Satellite to Earth):</b> {days_r1_r2} days, {hours_r1_r2} hours, {minutes_r1_r2} minutes</li>
-            <li><b>Travel Time (Earth to Mars):</b> {days_r2_r3} days, {hours_r2_r3} hours, {minutes_r2_r3} minutes</li>
-            <li><b>Travel Time (Sun to Earth):</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
-            <li><b>Travel Time (Sun to Mars):</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
-        </ul>
-
-        <h3 style='font-size:16px;'>CME Properties</h3>
-        <ul>
-            <li><b>Total Volume of the CME:</b> {Vol1_AU:.2e} AU³</li>
-            <li><b>Total Mass of the CME:</b> {m_cme:.2e} kg</li>
-            <li><b>Average Propagation Speed ({r0_in_rs:.1f} R_s to 1 AU):</b> {avg_speed_kms_r0_r2:.2f} km/s</li>
-            <li><b>Inclination of the CME:</b> {theta_x_deg:.2f}°</li>
-            <li><b>Cut section angle:</b> {phi0_deg:.2f}°</li>
-        </ul>
-        """, unsafe_allow_html=True)
-
-
+    
         # ----------------------------------------------------------------------------------
         # Section 17: Checking if the CME passes through Earth or Mars
         # ----------------------------------------------------------------------------------
-        st.subheader("CME Interaction with Earth and Mars")
 
         # Parse the dates of interest
         satellite_date = parse_time(fecha_llegada_r1)
@@ -3280,7 +3245,7 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
         # Compute the CME's center ecliptic longitude
         cme_lon = lon_ecliptic % 360  # Satellite's ecliptic longitude
-        cme_center_lon = (cme_lon + np.degrees(theta_rot)) % 360  # Add the offset theta_rot (converted to degrees)
+        cme_center_lon = (cme_lon - np.degrees(theta_rot)) % 360  # Add the offset theta_rot (converted to degrees)
 
         # Compute the intervals of interaction
         # At Earth's distance (r_2), using gamma_2_deg
@@ -3290,28 +3255,6 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # At Mars' distance (r_3), using gamma_3_deg
         mars_min_angle = (cme_center_lon - gamma_3_deg) % 360
         mars_max_angle = (cme_center_lon + gamma_3_deg) % 360
-
-        # Display the calculated positions
-        st.markdown(f"""
-        **Satellite ({mission}) Position at {satellite_date.strftime('%Y-%m-%d %H:%M:%S')}**:
-        - Radial Distance: {satellite_distance:.3f} AU
-        - Ecliptic Longitude: {satellite_lon:.2f}°
-
-        **Earth's Position at {earth_date.strftime('%Y-%m-%d %H:%M:%S')}**:
-        - Radial Distance: {earth_distance:.3f} AU
-        - Ecliptic Longitude: {earth_lon:.2f}°
-
-        **Mars' Position at {mars_date.strftime('%Y-%m-%d %H:%M:%S')}**:
-        - Radial Distance: {mars_distance:.3f} AU
-        - Ecliptic Longitude: {mars_lon:.2f}°
-        """)
-
-
-        # Display CME propagation details
-        st.markdown("**CME Propagation:**")
-        st.markdown(f"- Ecliptic Longitude of the center: {cme_center_lon:.2f}°")
-        st.markdown(f"- Interval of interaction at Earth's Radial Distance: ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)")
-        st.markdown(f"- Interval of interaction at Mars' Position: ({mars_min_angle:.2f}°, {mars_max_angle:.2f}°)")
 
         # Function to check if a longitude is within an interval, handling the 0°/360° boundary
         def is_within_interval(lon, min_angle, max_angle):
@@ -3333,48 +3276,301 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
         # Check if Mars' ecliptic longitude is within the interval at r_3
         mars_within_interval = is_within_interval(mars_lon, mars_min_angle, mars_max_angle)
 
-        # Display the encounter analysis based on ecliptic longitude intervals
-        st.markdown("**CME Encounter Analysis (Based on Ecliptic Longitude):**")
-        if earth_within_interval:
-            st.markdown(f"- **Earth**: The CME is **likely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
-        else:
-            st.markdown(f"- **Earth**: The CME is **unlikely** to pass through Earth's position (Ecliptic Longitude {earth_lon:.2f}° is not within [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
-        if mars_within_interval:
-            st.markdown(f"- **Mars**: The CME is **likely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
-        else:
-            st.markdown(f"- **Mars**: The CME is **unlikely** to pass through Mars' position (Ecliptic Longitude {mars_lon:.2f}° is not within [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).")
 
         # # Additional note on limitations
         # st.markdown("*Note*: This analysis is based solely on ecliptic longitude intervals and does not account for radial distance differences or the CME's 3D trajectory and temporal evolution.")
 
 
         # ----------------------------------------------------------------------------------
-        # 18) Plot of the Interplanetary Scene
+        # 19) Global Forecast of the CME
         # ----------------------------------------------------------------------------------
-        # st.subheader("Convergence Analysis")
+        # st.subheader("Global Forecast of the CME")
 
-        # st.markdown(f"""
-        # <h3 style='font-size:16px;'>Checking Parameters</h3>
-        # <ul>
-        #     <li><b>Theta XY:</b> {theta_xy_deg:.2e}°</li>
-        #     <li><b>Phi XZ:</b> {phi_xz_deg:.2e}°</li>
-        #     <li><b>z0:</b> {z0:.2f} </li>
-        #     <li><b>theta_x:</b> {np.rad2deg(angle_x):.2f}°</li>
-        #     <li><b>theta_y:</b> {np.rad2deg(angle_y):.2f}°</li>
-        #     <li><b>theta_z:</b>  {np.rad2deg(angle_z):.2f}</li>
-        #     <li><b>delta:</b> {delta:.2f} kg</li>
-        #     <li><b>Ravg: </b> {R2_avg:.4f} </li>
-        #     <li><b>gamma1:</b> {gamma_1_deg:.2f}°</li>
-        #     <li><b>portionRight:</b> {prop_y_pos*100:.1f}%</li>
-        #     <li><b>t1-t0:</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
-        #     <li><b>t2-t0:</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
-        #     <li><b>t3-t0:</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
-        #     <li><b>inclination:</b> {theta_x_deg:.2f}°</li>
-        #     <li><b>cutSectionAngle:</b> {phi0_deg:.2f}°</li>
-        #     <li><b>gammaCME:</b>  {cme_center_lon:.2f}°</li>
-        #     <li><b>intervalEarth:</b> ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)</li>
-        # </ul>
-        # """, unsafe_allow_html=True)
+        # Parse the dates of interest
+        satellite_date = parse_time(fecha_llegada_r1)
+        earth_date = parse_time(fecha_llegada_r2)
+        mars_date = parse_time(fecha_llegada_r3)
+
+        def get_planet_ecl(body, obstime):
+            coord = get_body_heliographic_stonyhurst(body, obstime)
+            r_au, lon_deg = get_position_data(body, coord, obstime)
+            lon_deg %= 360
+            return np.deg2rad(lon_deg), r_au, lon_deg
+
+        # 19A) posiciones al paso de la CME por cada cuerpo
+        θ_e, r_e, lon_e = get_planet_ecl('Earth', earth_date)
+        θ_m, r_m, lon_m = get_planet_ecl('Mars',  mars_date)
+
+        # posición de la nave con Horizons (r en UA, lon en grados)
+        coord_s     = get_horizons_coord(mission, satellite_date)
+        r_s, lon_s  = get_position_data(mission, coord_s, satellite_date)
+        lon_s %= 360
+        θ_s = np.deg2rad(lon_s)
+
+        # CME centre (deg → UA)
+        lon_cme = cme_center_lon
+        θ_cme   = np.deg2rad(lon_cme)
+
+        # ------------------------------------------------
+        # Parámetros orbitales en UA
+        a_earth = 1.0
+        e_earth = 0.0167
+        b_earth = a_earth * np.sqrt(1 - e_earth**2)
+
+        a_mars  = 1.524
+        e_mars  = 0.0934
+        b_mars  = a_mars  * np.sqrt(1 - e_mars**2)
+        # ------------------------------------------------
+
+        # st.subheader("CME Propagation Forecast")
+        # 2) dibujo polar
+        fig, ax = plt.subplots(subplot_kw={'projection':'polar'}, figsize=(6,6))
+        ax.set_theta_zero_location('E')  # 0° = equinoccio vernal (este)
+        ax.set_theta_direction(-1)       # sentido horario
+
+        # 3) órbitas keplerianas en UA
+        θ = np.linspace(0, 2*np.pi, 800)
+        r_e_orbit = a_earth*(1 - e_earth**2)/(1 + e_earth * np.cos(θ))
+        r_m_orbit = a_mars *(1 - e_mars**2)/(1 + e_mars  * np.cos(θ))
+        ax.plot(θ, r_e_orbit, lw=2, label='Earth orbit')
+        ax.plot(θ, r_m_orbit, lw=2, label='Mars orbit')
+
+        # -------------------------------------------------------
+        # 4) abanico CME (expansión f(r) = 0.25·r^1.4)
+        def f(r):
+            return AA * (r**kk)
+
+        r_max  = max(r_e_orbit.max(), r_m_orbit.max()) * 1.05
+        r_vals = np.linspace(0, r_max, 400)
+        f_vals = f(r_vals)             # aquí la ley de potencias en lugar de 0.25·r^1.4
+        γ      = np.arctan2(f_vals, r_vals)
+        θ_lo   = θ_cme - γ
+        θ_hi   = θ_cme + γ
+
+        ax.fill(
+            np.concatenate([θ_lo, θ_hi[::-1]]),
+            np.concatenate([r_vals, r_vals[::-1]]),
+            color='gray', alpha=0.3, label='CME Swept Area'
+        )
+        ax.plot(θ_lo, r_vals, '--', lw=2, color='gray')
+        ax.plot(θ_hi, r_vals, '--', lw=2, color='gray')
+
+        # 5) Sol, planetas y nave
+        ax.scatter(0,    0,   s=300, color='yellow', edgecolor='orange', label='Sun')
+        ax.scatter(θ_e,  r_e, s=100, color='blue',   label=f"Earth @ {lon_e:.1f}°")
+        ax.scatter(θ_m,  r_m, s=100, color='red',    label=f"Mars  @ {lon_m:.1f}°")
+        ax.scatter(θ_s,  r_s, s= 30, color='black',  label=f"{mission} @ {lon_s:.1f}°")
+
+        # 6) estilo
+        ax.set_rlabel_position(315)
+        ax.tick_params(axis='y', pad=8)
+        # ax.set_title("CME Forecast Global View", va='bottom')
+        ax.grid(True)
+        ax.legend(bbox_to_anchor=(1.05,1), loc='upper left')
+        plt.subplots_adjust(left=0.05, right=0.75)
+
+        # 7) render en Streamlit
+        # st.pyplot(fig)
+
+
+
+        # ----------------------------------------------------------------------------------
+        # Propagation Plot 1) CME Planetary Scene
+        # ----------------------------------------------------------------------------------
+        # 2) dibujo polar
+        fig, ax = plt.subplots(subplot_kw={'projection':'polar'}, figsize=(6,6))
+        ax.set_theta_zero_location('E')  # 0° = equinoccio vernal (este)
+        ax.set_theta_direction(-1)       # sentido horario
+
+        # 3) órbitas keplerianas en UA
+        θ = np.linspace(0, 2*np.pi, 800)
+        r_e_orbit = a_earth*(1 - e_earth**2)/(1 + e_earth * np.cos(θ))
+        r_m_orbit = a_mars *(1 - e_mars**2)/(1 + e_mars  * np.cos(θ))
+        ax.plot(θ, r_e_orbit, lw=2, label='Earth orbit')
+        ax.plot(θ, r_m_orbit, lw=2, label='Mars orbit')
+
+        # -------------------------------------------------------
+        # 4) abanico CME (expansión f(r) = 0.25·r^1.4)
+        def f(r):
+            return AA * (r**kk)
+
+        r_max  = max(r_e_orbit.max(), r_m_orbit.max()) * 1.05
+        r_vals = np.linspace(0, r_max, 400)
+        f_vals = f(r_vals)             # aquí la ley de potencias en lugar de 0.25·r^1.4
+        γ      = np.arctan2(f_vals, r_vals)
+        θ_lo   = θ_cme - γ
+        θ_hi   = θ_cme + γ
+
+        ax.fill(
+            np.concatenate([θ_lo, θ_hi[::-1]]),
+            np.concatenate([r_vals, r_vals[::-1]]),
+            color='gray', alpha=0.3, label='CME Swept Area'
+        )
+        ax.plot(θ_lo, r_vals, '--', lw=2, color='gray')
+        ax.plot(θ_hi, r_vals, '--', lw=2, color='gray')
+
+        # 5) Sol, planetas y nave
+        ax.scatter(0,    0,   s=300, color='yellow', edgecolor='orange', label='Sun')
+        ax.scatter(θ_e,  r_e, s=100, color='blue',   label=f"Earth @ {lon_e:.1f}°")
+        ax.scatter(θ_m,  r_m, s=100, color='red',    label=f"Mars  @ {lon_m:.1f}°")
+        ax.scatter(θ_s,  r_s, s= 30, color='black',  label=f"{mission} @ {lon_s:.1f}°")
+
+        # 6) estilo
+        ax.set_rlabel_position(315)
+        ax.tick_params(axis='y', pad=8)
+        # ax.set_title("CME Forecast Global View", va='bottom')
+        ax.grid(True)
+        ax.legend(bbox_to_anchor=(1.05,1), loc='upper left')
+        plt.subplots_adjust(left=0.05, right=0.75)
+
+        # 7) render en Streamlit
+        st.pyplot(fig)
+
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------------------------------------------------------------
+        # Summary with subsections and styled formatting
+        st.markdown(f"""
+        <h3 style='font-size:16px; margin-bottom:0;'>🕒 <u>Key Timestamps</u></h3>
+        <ul style='margin-top:5px;'>
+            <li><b>Departure from r₀ (2.5 R<sub>☉</sub>):</b> {fecha_departure_r0.strftime('%Y-%m-%d')} &nbsp;&nbsp; <b>Time:</b> {fecha_departure_r0.strftime('%H:%M:%S')}</li>
+            <li><b>Detected by the satellite:</b> {fecha_llegada_r1.strftime('%Y-%m-%d')} &nbsp;&nbsp; <b>Time:</b> {fecha_llegada_r1.strftime('%H:%M:%S')}</li>
+            <li><b>Crosses Earth's orbit:</b> {fecha_llegada_r2.strftime('%Y-%m-%d')} &nbsp;&nbsp; <b>Time:</b> {fecha_llegada_r2.strftime('%H:%M:%S')}</li>
+            <li><b>Crosses Mars' orbit:</b> {fecha_llegada_r3.strftime('%Y-%m-%d')} &nbsp;&nbsp; <b>Time:</b> {fecha_llegada_r3.strftime('%H:%M:%S')}</li>
+        </ul>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### 🛰️ Satellite and Planetary Positions")
+
+        st.markdown(f"""
+        **Satellite ({mission}) Position at {satellite_date.strftime('%Y-%m-%d %H:%M:%S')}**  
+        - Radial Distance: {satellite_distance:.3f} AU  
+        - Ecliptic Longitude: {satellite_lon:.2f}°
+
+        **Earth's Position at {earth_date.strftime('%Y-%m-%d %H:%M:%S')}**  
+        - Radial Distance: {earth_distance:.3f} AU  
+        - Ecliptic Longitude: {earth_lon:.2f}°
+
+        **Mars' Position at {mars_date.strftime('%Y-%m-%d %H:%M:%S')}**  
+        - Radial Distance: {mars_distance:.3f} AU  
+        - Ecliptic Longitude: {mars_lon:.2f}°
+        """)
+
+        st.markdown("### ☀️ CME Propagation Details")
+        st.markdown(f"""
+        - **Ecliptic Longitude of CME Center**: {cme_center_lon:.2f}°  
+        - **Interaction Interval at Earth Distance**: ({earth_min_angle:.2f}°, {earth_max_angle:.2f}°)  
+        - **Interaction Interval at Mars Distance**: ({mars_min_angle:.2f}°, {mars_max_angle:.2f}°)
+        """)
+
+        st.markdown("### 🧭 CME Encounter Analysis")
+
+        if earth_within_interval:
+            st.markdown(f"- 🌍 **Earth**: The CME is **likely** to intersect Earth's position (longitude {earth_lon:.2f}° ∈ [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+        else:
+            st.markdown(f"- 🌍 **Earth**: The CME is **unlikely** to intersect Earth's position (longitude {earth_lon:.2f}° ∉ [{earth_min_angle:.2f}°, {earth_max_angle:.2f}°]).")
+
+        if mars_within_interval:
+            st.markdown(f"""- <span style='color:red;font-size:22px;'>●</span> <b>Mars</b>: The CME is <b>likely</b> to intersect Mars' position (longitude {mars_lon:.2f}° ∈ [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""- <span style='color:red;font-size:22px;'>●</span> <b>Mars</b>: The CME is <b>unlikely</b> to intersect Mars' position (longitude {mars_lon:.2f}° ∉ [{mars_min_angle:.2f}°, {mars_max_angle:.2f}°]).""", unsafe_allow_html=True)
+        st.markdown("_Note: Ecliptic longitudes are expressed in the **HEE (Heliocentric Earth Ecliptic)** coordinate system._")
+
+        # ----------------------------------------------------------------------------------
+        # Propagation Plot 2) Propagation Video
+        # ----------------------------------------------------------------------------------
+        if SHOW_ANIMATION:
+            st.subheader("📽️ CME Propagation Animation")
+            
+            if html_video:
+                st.components.v1.html(html_video, height=600)
+            else:
+                st.warning("No animation available. Please generate it in Section 11.")
+
+
+        # ----------------------------------------------------------------------------------
+        # Propagation Plot 3) 3D CME
+        # ----------------------------------------------------------------------------------
+        if SHOW_PLOTS and fig_3d_cme:
+            st.markdown("<h2 style='font-size:20px;'>3D Model of the CME</h2>", unsafe_allow_html=True)
+            st.plotly_chart(fig_3d_cme, use_container_width=True, key="fig_3d_cme_plot")
+            st.markdown(f"""
+                <h3 style='font-size:16px;'>CME Properties</h3>
+                <ul>
+                    <li><b>Total Volume of the CME:</b> {Vol1_AU:.2e} AU³</li>
+                    <li><b>Total Mass of the CME:</b> {m_cme:.2e} kg</li>
+                    <li><b>Average Propagation Speed ({r0_in_rs:.1f} R_s to 1 AU):</b> {avg_speed_kms_r0_r2:.2f} km/s</li>
+                    <li><b>Inclination of the CME:</b> {theta_x_deg:.2f}°</li>
+                    <li><b>Cut section angle:</b> {phi0_deg:.2f}°</li>
+                </ul>
+                """, unsafe_allow_html=True)
+
+        elif SHOW_PLOTS:
+            st.warning("No 3D plot available. Please generate it in Section 13.")
+
+
+
+        # ----------------------------------------------------------------------------------
+        # Propagation Plot 4) Propagation Velocity
+        # ----------------------------------------------------------------------------------
+        if SHOW_PLOTS:
+            st.subheader("Velocity Profile")
+            st.pyplot(fig_velocity_profile)
+
+            # calculas v_kms como tú ya tienes
+            speed_items = ""
+            for label, r_m in key_points.items():
+                v_kms = np.interp(r_m, r_full, v_full) / 1e3
+                speed_items += f"<li><b>Speed at {label}:</b> {v_kms:.2f} km/s</li>\n"
+
+            st.markdown(f"""
+            <h3 style='font-size:16px;'>CME Speed at Key Distances</h3>
+            <ul>
+            {speed_items}
+            """, unsafe_allow_html=True)
+
+
+            st.markdown(f"""
+            <h3 style='font-size:16px;'>Propagation Times</h3>
+            <ul>
+                <li><b>Travel Time (Sun to Satellite):</b> {days_r0_r1} days, {hours_r0_r1} hours, {minutes_r0_r1} minutes</li>
+                <li><b>Travel Time (Satellite to Earth):</b> {days_r1_r2} days, {hours_r1_r2} hours, {minutes_r1_r2} minutes</li>
+                <li><b>Travel Time (Earth to Mars):</b> {days_r2_r3} days, {hours_r2_r3} hours, {minutes_r2_r3} minutes</li>
+                <li><b>Travel Time (Sun to Earth):</b> {days_r0_r2} days, {hours_r0_r2} hours, {minutes_r0_r2} minutes</li>
+                <li><b>Travel Time (Sun to Mars):</b> {days_r0_r3} days, {hours_r0_r3} hours, {minutes_r0_r3} minutes</li>
+            </ul>
+            """, unsafe_allow_html=True)
+
+        # ----------------------------------------------------------------------------------
+        # Propagation Plot 5) Angular Width of the CME
+        # ----------------------------------------------------------------------------------
+        # Display again the projection onto the YZ Plane (already created in Section 14)
+        if SHOW_PLOTS:
+            st.subheader("Angular Width of the CME")
+            st.plotly_chart(fig_proj, use_container_width=True, key="fig_proj_recall")
+
+            st.markdown("<h2 style='font-size:20px;'>Projection Summary at z = 0 (Ecliptic Plane)</h2>", unsafe_allow_html=True)
+            st.markdown(f"- **Length of the horizontal cut**: {cut_length:.3f} AU" if cut_length is not None 
+                        else "- **Length of the horizontal cut**: Not applicable (z = 0 does not intersect the ellipse)")
+            st.markdown(f"- **Projected area**: {area_ellipse:.3f} AU²")
+
+            # st.markdown("---")
+            st.markdown("<h2 style='font-size:20px;'>Segment Proportions at z = 0</h2>", unsafe_allow_html=True)
+
+            cols = st.columns(2)
+            cols[0].markdown(f"- **Right of the satellite**: {prop_y_pos:.3f}  ({prop_y_pos*100:.1f}%)")
+            cols[1].markdown(f"- **Left of the satellite**: {prop_y_neg:.3f}  ({prop_y_neg*100:.1f}%)")
+
+            st.markdown(f"- **Total width in XY at $r_1$**: {L:.3f} AU")
+            st.markdown(f"- **Ecliptic longitude offset (center vs satellite)**: {np.degrees(theta_rot):.2f}°")
+ 
+            st.plotly_chart(fig_cme_width, use_container_width=True, key="plot_cme_width")  
+
+            st.latex(r"\gamma_1 = \arctan\!\bigl(\tfrac{f(r_1)}{r_1}\bigr) =\pm %.2f^\circ" % gamma_1_deg)
+            st.latex(r"\gamma_2 = \arctan\!\bigl(\tfrac{f(r_2)}{r_2}\bigr) =\pm %.2f^\circ" % gamma_2_deg)
+            st.latex(r"\gamma_3 = \arctan\!\bigl(\tfrac{f(r_3)}{r_3}\bigr) =\pm %.2f^\circ" % gamma_3_deg)
+
+            st.markdown("---")
+
 
 
     if best_combination is None:
@@ -3382,3 +3578,4 @@ def fit_M2_AngularRadial(data, initial_point, final_point, initial_date, final_d
 
     return (best_combination, B_components_fit, trajectory_vectors,
             viz_3d_vars_opt, viz_2d_local_vars_opt, viz_2d_rotated_vars_opt)
+
