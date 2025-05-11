@@ -64,7 +64,7 @@ def get_fitting_model():
         "",
         (
             "Model 1: EC - Nieves-Chinchilla - Radial Model",
-            "Model 2: EC - Jesus Navas - Radial and Poloidal Model",
+            "Model 2: EC - Radial and Poloidal Model",
         ),
     )
 
