@@ -138,13 +138,6 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
 
     fig_3d_cme = None  # global placeholder
   
-    # # Fixed test parameters (as in your original code)
-    # z0_range = np.array([-0.5, -0.3, -0.1, 0.1, 0.3, 0.5])  # (-1, 1)
-    # angle_x_range = np.array([np.radians(70)])              # (0, 180)
-    # angle_y_range = np.array([np.radians(0)])               # (0, 180)
-    # angle_z_range = np.array([-np.radians(0)])              # (0, 180)
-    # delta_range = np.array([0.7])                           # (0, 1)
-
     # Fixed parameters for LaTeX illustration
     # z0_range = np.array([0.21])  # (-1, 1)
     # angle_x_range = np.array([np.radians(76)])              # (0, 180)
@@ -152,14 +145,14 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
     # angle_z_range = np.array([-np.radians(-30.1)])             # (0, 180)
     # delta_range = np.array([0.7])                           # (0, 1)
 
-    # SYNTHETIC FR ITERATIONS
-    z0_range = np.linspace(-0.7, 0.7, int(N_iter/2))                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
+    # ITERATIONS
+    z0_range = np.linspace(-0.75, 0.75, int(N_iter/2))                            # Relative entrance altitude (-1, 1), but we consider the top and bottom problematic in reality, so we use (-0.8, 0.8)
     angle_x_range = np.linspace(-np.pi + 0.2, np.pi - 0.2, 2 * N_iter)       # Interval (-π, π)
     angle_y_range = np.linspace(-np.pi/2 + 0.1, np.pi/2 - 0.1, N_iter)   # Interval (-π/2, π/2)
     angle_z_range = np.linspace(-np.pi + 0.1, np.pi - 0.1, 2 * N_iter)   # Interval (-π, π)
-    delta_range = np.linspace(0.7, 1.2, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
-    # delta_range = np.array([0.7])
-    # delta_range = np.array([1])
+    delta_range = np.linspace(0.6, 1.0, int(N_iter/2))                          # Ellipse distortion (we do not consider more extreme distortions, as would be < 0.4).
+    # delta_range = np.array([1])       # In case we wanted Circular Cylindrical geometry
+
 
     total_iterations = len(z0_range) * len(angle_x_range) * len(angle_y_range) * len(angle_z_range) * len(delta_range)
     st.write("Total Iterations:", total_iterations)
@@ -307,7 +300,8 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
                             # ----------------------------------------------------------------------------------
                             Z_max = np.max(Z_ellipse)
                             Z_min = np.min(Z_ellipse)
-                            z_cut = z0 * Z_max
+
+                            z_cut = z0 * Z_max if z0 >= 0 else z0 * Z_min
 
                             # 3.1 Solve the System
                             # ----------------------------------------------------------------------------------
@@ -489,7 +483,7 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
                             # ----------------------------------------------------------------------------------
                             dx = x_local[-1] - x_local[0]
                             dy = y_local[-1] - y_local[0]
-                            trajectory_angle = np.arctan2(dy, dx) #+ np.pi
+                            trajectory_angle = np.arctan2(dy, dx) + np.pi
 
                             rotation_2d = np.array([
                                 [np.cos(-trajectory_angle), -np.sin(-trajectory_angle)],

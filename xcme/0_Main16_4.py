@@ -51,8 +51,8 @@ st.sidebar.markdown(
     "<div style='margin-top:0.2rem; margin-bottom:0.2rem;'><strong>Display Options</strong></div>",
     unsafe_allow_html=True,
 )
-show_plots     = st.sidebar.checkbox("Show detailed plots", value=True)
-show_animation = st.sidebar.checkbox("Show CME animation", value=True)
+show_plots     = st.sidebar.checkbox("Compute detailed plots", value=True)
+show_animation = st.sidebar.checkbox("Compute CME animation", value=True)
 
 # ─── Sidebar: Model selection ────────────────────────────────────────────────
 def get_fitting_model():
@@ -64,7 +64,7 @@ def get_fitting_model():
         "",
         (
             "Model 1: EC - Nieves-Chinchilla - Radial Model",
-            "Model 2: EC - Radial and Poloidal Model",
+            "Model 2: EC - Jesus Navas - Radial and Poloidal Model",
         ),
     )
 
