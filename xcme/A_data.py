@@ -24,7 +24,7 @@ def handle_file_upload(upload_option):
 
     if upload_option == "Upload a file":
         # Option to upload a local file
-        uploaded_file = st.file_uploader("Upload a CSV or TXT file", type=["csv", "txt", "ascii"])
+        uploaded_file = st.session_state.get("uploaded_example") or st.file_uploader("Upload a CSV or TXT file", type=["csv", "txt", "ascii"])
         if uploaded_file:
             file_name = uploaded_file.name
             uploaded_file.seek(0)
@@ -297,30 +297,30 @@ def load_data(file):
             if not any(col in expected_cols for col in data.columns):
                 raise ValueError("File columns do not match expected formats.")
         
-        # Contar puntos iniciales
+        # Count initial points
         initial_points = len(data)
-        st.write(f"### Número de puntos iniciales: {initial_points}")
+        st.write(f"### Number of initial points: {initial_points}")
         
-        # Corrección de valores NaN e inf
-        # Reemplazar inf por NaN y reportar
+        # Correction of NaN and inf values
+        # Replace inf with NaN and report
         inf_check = data.replace([np.inf, -np.inf], np.nan).isna().sum()
         if inf_check.any():
-            st.warning("Las siguientes columnas contienen inf o NaN antes de la interpolación:")
+            st.warning("The following columns contain inf or NaN before interpolation:")
             st.write(inf_check[inf_check > 0])
             data = data.replace([np.inf, -np.inf], np.nan)
             data = data.interpolate(method='linear', limit_direction='both')
             
-            # Comprobación después de la interpolación
+            # Check after interpolation
             remaining_nans = data.isna().sum()
             if remaining_nans.any():
-                st.warning("Todavía hay valores NaN después de la interpolación en las siguientes columnas:")
+                st.warning("There are still NaN values after interpolation in the following columns:")
                 st.write(remaining_nans[remaining_nans > 0])
-                data = data.fillna(0)  # Rellenar los NaN restantes con 0
-                st.success("Todos los NaN restantes han sido rellenados con 0.")
+                data = data.fillna(0)  # Fill remaining NaNs with 0
+                st.success("All remaining NaN values have been filled with 0.")
             else:
-                st.success("Todos los valores inf/NaN han sido interpolados con éxito.")
+                st.success("All inf/NaN values have been successfully interpolated.")
         else:
-            st.success("No se detectaron valores inf o NaN en el archivo.")
+            st.success("No inf or NaN values were detected in the file.")
         
         if data.isna().any().any():
             raise ValueError("Data contains NaN values. Please check the preprocessing steps.")
@@ -459,10 +459,10 @@ def display_file_details(file_name, coordinate_system):
         <li><b>Mission:</b> {full_name}</li>
         <li><b>Date:</b> {file_date.strftime('%Y-%m-%d')}</li>
         <li><b>Day-of-Year (ddoy):</b> {ddoy}</li>
-        <li><b>Sampling Interval:</b> {file_duration}</li>
         <li><b>Coordinate System:</b> {coordinate_system}</li>
     </ul>
     """
+        # <li><b>Sampling Interval:</b> {file_duration}</li>
         # <li><b>Satellite's Distance from the Sun (AU):</b> {np.round(distance, 3)}</li>
         # <li><b>Ecliptic Longitude (degrees):</b> {np.round(lon_ecliptic, 2)}</li>
 

@@ -182,6 +182,8 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
     angle_min_x = np.deg2rad(angle_min_x_deg) 
     angle_min_z_deg = 25  # Minimum angle of the FR axis wrt the z-axis. 
     angle_min_z = np.deg2rad(angle_min_z_deg) 
+    angle_plane_min_deg = 30
+    angle_plane_min = np.deg2rad(angle_plane_min_deg)
 
 
     # ----------------------------------------------------------------------------------
@@ -214,12 +216,20 @@ def fit_M1_radial(SHOW_PLOTS, SHOW_ANIMATION, data, initial_point, final_point, 
                 R1 = Rz @ Ry @ Rx
                 v_axis = R1 @ v__0
 
+
+                # rotación compuesta (ajusta el orden si tu transformación es distinta)
+                R1 = Rz @ Ry @ Rx
+                v_axis = R1 @ v__0
+                norm_v = np.linalg.norm(v_axis)
+
+                angle_with_XZ = np.arcsin(abs(v_axis[1]) / norm_v)
+
                 # normalizamos por si acaso
                 cos_theta1 = np.clip(v_axis[0] / np.linalg.norm(v_axis), -1.0, 1.0)
                 angle_with_x = np.arccos(abs(cos_theta1))  # usamos abs() si da igual hacia +X o -X
 
                 # comprobación
-                if angle_with_x >= angle_min_x:
+                if angle_with_x >= angle_min_x and angle_with_XZ >= angle_plane_min:
                     for z0 in z0_range:
                         for delta in delta_range:
                             current_iteration += 1

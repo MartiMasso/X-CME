@@ -1,6 +1,8 @@
 import streamlit as st
 import matplotlib as mpl
 import imageio_ffmpeg
+import io
+
 
 from A_data import (
     load_data,
@@ -38,28 +40,36 @@ st.title("X-CME")
 st.subheader("Flux Rope Fitting and CME Propagation Simulation - NASA")
 st.markdown("**Author:** Martí Massó Moreno")
 
-# ─── Sidebar: File upload options ─────────────────────────────────────────────
-st.sidebar.markdown(
-    "<div style='margin-top:0.2rem; margin-bottom:0.2rem;'><strong>Load Options</strong></div>",
-    unsafe_allow_html=True,
-)
-upload_option = st.sidebar.radio("", ("Upload a file", "Download from cloud"))
+# ─── Sidebar: File upload or example ──────────────────────────────────────────
+st.sidebar.markdown("### 📁 Load Data")
+
+example_files = {
+    "PSP_20220818_035_11m.csv": "TestSampleFiles/PSP_20220818_035_11m.csv",
+    "PSP_20230916_035_12m.csv": "TestSampleFiles/PSP_20230916_035_12m.csv",
+    "SO_20230219_035_14m.csv": "TestSampleFiles/SO_20230219_035_14m.csv",
+    "WI_20090930_273_15m.csv": "TestSampleFiles/WI_20090930_273_15m.csv",
+}
+selected_example = st.sidebar.selectbox("Select an example file", ["None"] + list(example_files.keys()))
+upload_option = st.sidebar.radio("Or upload your own file", ("Upload a file", "Download from cloud"))
+
+if selected_example != "None":
+    file_path = example_files[selected_example]
+    with open(file_path, 'rb') as f:
+        uploaded_bytes = io.BytesIO(f.read())
+        uploaded_bytes.name = selected_example
+        st.session_state["uploaded_example"] = uploaded_bytes
+    upload_option = "Upload a file"
+
 data, file_name = handle_file_upload(upload_option)
 
 # ─── Sidebar: Display toggles ────────────────────────────────────────────────
-st.sidebar.markdown(
-    "<div style='margin-top:0.2rem; margin-bottom:0.2rem;'><strong>Display Options</strong></div>",
-    unsafe_allow_html=True,
-)
+st.sidebar.markdown("### 🔍 Display Options")
 show_plots     = st.sidebar.checkbox("Compute detailed plots", value=True)
 show_animation = st.sidebar.checkbox("Compute CME animation", value=True)
 
 # ─── Sidebar: Model selection ────────────────────────────────────────────────
 def get_fitting_model():
-    st.sidebar.markdown(
-        "<div style='margin-top:0.2rem; margin-bottom:0.2rem;'><strong>Choose Fitting Model</strong></div>",
-        unsafe_allow_html=True,
-    )
+    st.sidebar.markdown("### Choose Fitting Model")
     return st.sidebar.radio(
         "",
         (
