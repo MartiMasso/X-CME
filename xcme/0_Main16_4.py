@@ -45,9 +45,11 @@ st.sidebar.markdown("### 📁 Load Data")
 
 example_files = {
     "PSP_20220818_035_11m.csv": "TestSampleFiles/PSP_20220818_035_11m.csv",
-    "PSP_20230916_035_12m.csv": "TestSampleFiles/PSP_20230916_035_12m.csv",
+    "PSP_20230916_035_7m.csv": "TestSampleFiles/PSP_20230916_035_7m.csv",
     "SO_20230219_035_14m.csv": "TestSampleFiles/SO_20230219_035_14m.csv",
+    "SO_20220308__035_8m.csv": "TestSampleFiles/SO_20220308__035_8m.csv",
     "WI_20090930_273_15m.csv": "TestSampleFiles/WI_20090930_273_15m.csv",
+    "WI_20200101_035_21m.csv": "TestSampleFiles/WI_20200101_035_21m.csv",
 }
 selected_example = st.sidebar.selectbox("Select an example file", ["None"] + list(example_files.keys()))
 upload_option = st.sidebar.radio("Or upload your own file", ("Upload a file", "Download from cloud"))
